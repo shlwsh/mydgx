@@ -7,4 +7,9 @@ deepseek-v4-flash-dual-dgx/vllm-oci/progress.log
 *.log
 *.tmp
 
+# Python 虚拟环境
+.venv/
+__pycache__/
+*.pyc
+
 deepseek-v4-flash-dual-dgx\vllm-oci

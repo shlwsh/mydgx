@@ -4,6 +4,8 @@
   "private": true,
   "description": "DeepSeek-V4-Flash 双 DGX Spark 部署文档与脚本仓库",
   "scripts": {
+    "venv": "python -m venv .venv",
+    "setup": "python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple",
     "mygit": "python scripts/mygit.py"
   }
 }
