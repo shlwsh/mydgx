@@ -4,6 +4,6 @@
   "private": true,
   "description": "DeepSeek-V4-Flash 双 DGX Spark 部署文档与脚本仓库",
   "scripts": {
-    "mygit": "node scripts/mygit.js"
+    "mygit": "python scripts/mygit.py"
   }
 }
