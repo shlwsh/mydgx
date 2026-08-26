@@ -47,8 +47,10 @@ def ensure_in_venv():
 
 
 def run(cmd):
+    """执行命令并把返回值作为 F() 返回;不抛异常。"""
     print(f"> {cmd}")
-    subprocess.run(cmd, shell=True, check=True)
+    proc = subprocess.run(cmd, shell=True)
+    return proc.returncode
 
 
 def now():
@@ -66,15 +68,27 @@ def main() -> int:
     argued = " ".join(sys.argv[1:]).strip()
     message = argued or f"docs: 自动提交 {now()}"
 
-    try:
-        run("git add -A")
-        run(f'git commit -m "{message}"')
-        run("git push")
-        print("提交并推送成功.")
-        return 0
-    except subprocess.CalledProcessError as e:
-        print(f"执行失败: {e}", file=sys.stderr)
-        return e.returncode
+    rc = run("git add -A")
+    if rc != 0:
+        print("git add 失败，已中止。", file=sys.stderr)
+        return rc
+
+    rc = run(f'git commit -m "{message}"')
+    if rc != 0:
+        diff = os.popen("git diff --cached --stat").read().strip()
+        if not diff:
+            print("没有待提交的改动（工作区干净），跳过提交与推送。")
+            return 0
+        print("git commit 失败，已跳过推送。", file=sys.stderr)
+        return rc
+
+    rc = run("git push")
+    if rc != 0:
+        print("git push 失败。", file=sys.stderr)
+        return rc
+
+    print("提交并推送成功.")
+    return 0
 
 
 if __name__ == "__main__":
