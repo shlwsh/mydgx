@@ -1,0 +1,7 @@
+network:
+  version: 2
+  ethernets:
+    enp1s0f0np0:
+      addresses:
+        - 192.168.100.11/24
+      dhcp4: false

@@ -1,0 +1,120 @@
+=== HOST ===
+cube-fe5e
+bot
+Linux cube-fe5e 6.17.0-1021-nvidia #21-Ubuntu SMP PREEMPT_DYNAMIC Wed May 27 19:14:05 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+=== GPU ===
+Tue Aug 25 19:02:22 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.159.03             Driver Version: 580.159.03     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GB10                    On  |   0000000F:01:00.0  On |                  N/A |
+| N/A   49C    P0             12W /  N/A  | Not Supported          |      1%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            3315      G   /usr/bin/gnome-shell                    438MiB |
+|    0   N/A  N/A            3856      G   /usr/bin/Xwayland                         9MiB |
+|    0   N/A  N/A            4098    C+G   ...c/gnome-remote-desktop-daemon        176MiB |
+|    0   N/A  N/A            6352      G   /usr/bin/clash-verge                      5MiB |
+|    0   N/A  N/A            6486    C+G   ...rack-uuid=3190708988185955192         90MiB |
+|    0   N/A  N/A            8541      G   ...-root/usr/share/cursor/cursor        285MiB |
++-----------------------------------------------------------------------------------------+
+=== MEMORY ===
+               total        used        free      shared  buff/cache   available
+Mem:           121Gi       9.9Gi       107Gi       247Mi       5.6Gi       111Gi
+Swap:           15Gi          0B        15Gi
+=== STORAGE ===
+Filesystem     Type      Size  Used Avail Use% Mounted on
+tmpfs          tmpfs      13G  2.9M   13G   1% /run
+efivarfs       efivarfs  256K   19K  238K   8% /sys/firmware/efi/efivars
+/dev/nvme0n1p2 ext4      1.9T  612G  1.2T  35% /
+tmpfs          tmpfs      61G   34M   61G   1% /dev/shm
+tmpfs          tmpfs     5.0M  8.0K  5.0M   1% /run/lock
+/dev/nvme0n1p1 vfat      511M  6.4M  505M   2% /boot/efi
+tmpfs          tmpfs      13G  232K   13G   1% /run/user/1000
+=== NETWORK ===
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enP7s7           DOWN           
+enp1s0f0np0      UP             
+enp1s0f1np1      DOWN           
+enP2p1s0f0np0    UP             
+enP2p1s0f1np1    DOWN           
+wlP9s9           UP             172.19.51.123/22 fe80::93ba:c2c:449d:1b92/64 
+tailscale0       UNKNOWN        100.79.120.65/32 fd7a:115c:a1e0::7d32:7842/128 fe80::2ca7:4294:d026:4537/64 
+enx00e04c7a09e8  DOWN           
+default via 172.19.51.254 dev wlP9s9 proto dhcp src 172.19.51.123 metric 600 
+172.19.48.0/22 dev wlP9s9 proto kernel scope link src 172.19.51.123 metric 600 
+=== CONNECTX ===
+roceP2p1s0f0 port 1 ==> enP2p1s0f0np0 (Up)
+roceP2p1s0f1 port 1 ==> enP2p1s0f1np1 (Down)
+rocep1s0f0 port 1 ==> enp1s0f0np0 (Up)
+rocep1s0f1 port 1 ==> enp1s0f1np1 (Down)
+    device          	   node GUID
+    ------          	----------------
+    rocep1s0f0      	702ad70300c4d654
+    rocep1s0f1      	702ad70300c4d655
+    roceP2p1s0f0    	702ad70300c4d658
+    roceP2p1s0f1    	702ad70300c4d659
+=== RDMA ===
+total 0
+drwxr-xr-x  4 root root      260 Aug 25 18:33 .
+drwxr-xr-x 22 root root     4760 Aug 25 18:53 ..
+drwxr-xr-x  2 root root      120 Aug 25 18:33 by-ibdev
+drwxr-xr-x  2 root root      120 Aug 25 18:33 by-path
+crw-rw-rw-  1 root root  10, 263 Aug 25 18:33 rdma_cm
+crw-------  1 root root 231,   0 Aug 25 18:33 umad0
+crw-------  1 root root 231,   1 Aug 25 18:33 umad1
+crw-------  1 root root 231,   2 Aug 25 18:33 umad2
+crw-------  1 root root 231,   3 Aug 25 18:33 umad3
+crw-rw-rw-  1 root root 231, 192 Aug 25 18:33 uverbs0
+crw-rw-rw-  1 root root 231, 193 Aug 25 18:33 uverbs1
+crw-rw-rw-  1 root root 231, 194 Aug 25 18:33 uverbs2
+crw-rw-rw-  1 root root 231, 195 Aug 25 18:33 uverbs3
+link rocep1s0f0/1 state ACTIVE physical_state LINK_UP netdev enp1s0f0np0 
+link rocep1s0f1/1 state DOWN physical_state DISABLED netdev enp1s0f1np1 
+link roceP2p1s0f0/1 state ACTIVE physical_state LINK_UP netdev enP2p1s0f0np0 
+link roceP2p1s0f1/1 state DOWN physical_state DISABLED netdev enP2p1s0f1np1 
+=== DOCKER ===
+Docker version 29.2.1, build a5c7197
+Client: Docker Engine - Community
+ Version:    29.2.1
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.31.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v5.0.2
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+
+Server:
+=== NVIDIA CONTAINER ===
+/usr/bin/nvidia-ctk
+=== NETPLAN ===
+50-cloud-init.yaml
+90-NM-23f543ac-a61d-474c-8dee-ff6b402f4529.yaml
+90-NM-62ab7189-a605-4e37-b5ab-8bd3143bd9a3.yaml
+=== PREFLIGHT_DONE ===

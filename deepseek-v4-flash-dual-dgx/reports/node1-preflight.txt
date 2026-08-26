@@ -1,0 +1,142 @@
+=== HOST ===
+cube-0137
+his_test
+Linux cube-0137 6.14.0-1013-nvidia #13-Ubuntu SMP PREEMPT_DYNAMIC Wed Oct 29 06:01:19 UTC 2025 aarch64 aarch64 aarch64 GNU/Linux
+PRETTY_NAME="Ubuntu 24.04.3 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.3 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+=== GPU ===
+Tue Aug 25 19:02:25 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.95.05              Driver Version: 580.95.05      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GB10                    On  |   0000000F:01:00.0 Off |                  N/A |
+| N/A   39C    P8              4W /  N/A  | Not Supported          |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            3823      G   /usr/lib/xorg/Xorg                      381MiB |
+|    0   N/A  N/A            4008      G   /usr/bin/gnome-shell                     98MiB |
+|    0   N/A  N/A            9074      G   /usr/bin/FlClash                        262MiB |
++-----------------------------------------------------------------------------------------+
+=== MEMORY ===
+               total        used        free      shared  buff/cache   available
+Mem:           119Gi       5.2Gi       113Gi        38Mi       1.9Gi       114Gi
+Swap:           15Gi          0B        15Gi
+=== STORAGE ===
+Filesystem     Type      Size  Used Avail Use% Mounted on
+tmpfs          tmpfs      12G  2.4M   12G   1% /run
+efivarfs       efivarfs  256K   19K  238K   8% /sys/firmware/efi/efivars
+/dev/nvme0n1p2 ext4      1.9T  173G  1.6T  10% /
+tmpfs          tmpfs      60G  4.0K   60G   1% /dev/shm
+tmpfs          tmpfs     5.0M  8.0K  5.0M   1% /run/lock
+/dev/nvme0n1p1 vfat      511M  6.4M  505M   2% /boot/efi
+tmpfs          tmpfs      12G  1.4M   12G   1% /run/user/1000
+=== NETWORK ===
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enP7s7           DOWN           
+enp1s0f0np0      UP             
+enp1s0f1np1      DOWN           
+enP2p1s0f0np0    UP             
+enP2p1s0f1np1    DOWN           
+wlP9s9           UP             172.19.49.159/22 fe80::fce4:3f8f:c28e:cb62/64 
+br-cbf358e33ae6  UP             192.168.200.1/24 fe80::41:eff:fe78:25bf/64 
+docker0          DOWN           172.17.0.1/16 
+veth134dffa@if2  UP             fe80::94ce:faff:fea2:910f/64 
+tailscale0       UNKNOWN        100.103.250.108/32 fd7a:115c:a1e0::4b32:fa6d/128 fe80::b6fe:3f72:ec9a:ba69/64 
+default via 172.19.51.254 dev wlP9s9 proto dhcp src 172.19.49.159 metric 600 
+172.16.7.46 via 172.19.51.254 dev wlP9s9 
+172.16.7.60 via 172.19.51.254 dev wlP9s9 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+172.17.1.126 via 172.19.51.254 dev wlP9s9 
+172.19.48.0/22 dev wlP9s9 proto kernel scope link src 172.19.49.159 metric 600 
+192.168.200.0/24 dev br-cbf358e33ae6 proto kernel scope link src 192.168.200.1 
+=== CONNECTX ===
+rocep1s0f0 port 1 ==> enp1s0f0np0 (Up)
+rocep1s0f1 port 1 ==> enp1s0f1np1 (Down)
+roceP2p1s0f0 port 1 ==> enP2p1s0f0np0 (Up)
+roceP2p1s0f1 port 1 ==> enP2p1s0f1np1 (Down)
+    device          	   node GUID
+    ------          	----------------
+    rocep1s0f0      	702ad70300c4d3c3
+    rocep1s0f1      	702ad70300c4d3c4
+    roceP2p1s0f0    	702ad70300c4d3c7
+    roceP2p1s0f1    	702ad70300c4d3c8
+=== RDMA ===
+total 0
+drwxr-xr-x  4 root root      260  8月 25 18:33 .
+drwxr-xr-x 19 root root     4340  8月 25 18:53 ..
+drwxr-xr-x  2 root root      120  8月 25 18:33 by-ibdev
+drwxr-xr-x  2 root root      120  8月 25 18:33 by-path
+crw-rw-rw-  1 root root  10, 120  8月 25 18:33 rdma_cm
+crw-------  1 root root 231,   0  8月 25 18:33 umad0
+crw-------  1 root root 231,   1  8月 25 18:33 umad1
+crw-------  1 root root 231,   2  8月 25 18:33 umad2
+crw-------  1 root root 231,   3  8月 25 18:33 umad3
+crw-rw-rw-  1 root root 231, 192  8月 25 18:33 uverbs0
+crw-rw-rw-  1 root root 231, 193  8月 25 18:33 uverbs1
+crw-rw-rw-  1 root root 231, 194  8月 25 18:33 uverbs2
+crw-rw-rw-  1 root root 231, 195  8月 25 18:33 uverbs3
+link rocep1s0f0/1 state ACTIVE physical_state LINK_UP netdev enp1s0f0np0 
+link rocep1s0f1/1 state DOWN physical_state DISABLED netdev enp1s0f1np1 
+link roceP2p1s0f0/1 state ACTIVE physical_state LINK_UP netdev enP2p1s0f0np0 
+link roceP2p1s0f1/1 state DOWN physical_state DISABLED netdev enP2p1s0f1np1 
+=== DOCKER ===
+Docker version 28.5.1, build e180ab8
+Client: Docker Engine - Community
+ Version:    28.5.1
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.29.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v2.40.0
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+
+Server:
+ Containers: 1
+  Running: 1
+  Paused: 0
+  Stopped: 0
+ Images: 7
+ Server Version: 28.5.1
+ Storage Driver: overlay2
+  Backing Filesystem: extfs
+  Supports d_type: true
+  Using metacopy: false
+  Native Overlay Diff: true
+  userxattr: false
+ Logging Driver: json-file
+ Cgroup Driver: systemd
+ Cgroup Version: 2
+ Plugins:
+  Volume: local
+=== NVIDIA CONTAINER ===
+/usr/bin/nvidia-ctk
+=== NETPLAN ===
+50-cloud-init.yaml
+90-NM-5584ac77-2bd5-452e-a990-c31a1ffddf05.yaml
+90-NM-c71269f0-8b86-4504-83f3-d9e648b0f3cb.yaml
+90-NM-e205855a-68c5-471c-ba9c-c49d92725aab.yaml
+=== PREFLIGHT_DONE ===

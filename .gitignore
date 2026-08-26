@@ -1,0 +1,10 @@
+# OCI/Docker image layers (large binary blobs)
+deepseek-v4-flash-dual-dgx/vllm-oci/blobs/
+deepseek-v4-flash-dual-dgx/vllm-oci/DOWNLOAD_COMPLETE
+deepseek-v4-flash-dual-dgx/vllm-oci/progress.log
+
+# Large reports and temporary files
+*.log
+*.tmp
+
+deepseek-v4-flash-dual-dgx\vllm-oci
