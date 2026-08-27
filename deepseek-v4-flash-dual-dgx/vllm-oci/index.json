@@ -1,1 +1,0 @@
-{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json", "manifests": [{"mediaType": "application/vnd.docker.distribution.manifest.v2+json", "digest": "sha256:676a1c896510f31b0bb063e16e133ac24100a4d0f0bd9c70128ecde69ef17d0b", "size": 9557, "annotations": {"org.opencontainers.image.ref.name": "pinned-676a1c89"}}]}
