@@ -12,4 +12,7 @@ deepseek-v4-flash-dual-dgx/vllm-oci/progress.log
 __pycache__/
 *.pyc
 
+# 敏感凭证（含明文密码，禁止入库）
+.env
+
 deepseek-v4-flash-dual-dgx\vllm-oci
