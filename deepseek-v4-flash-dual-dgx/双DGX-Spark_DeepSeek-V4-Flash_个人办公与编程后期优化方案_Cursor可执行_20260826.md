@@ -17,14 +17,14 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| Node 0 | `172.19.51.123`，Rank 0 / API |
+| Node 0 | `172.19.9.104`，Rank 0 / API |
 | Node 1 | `172.19.49.159`，Rank 1 |
 | CX-7 直连 | `192.168.100.10` ↔ `192.168.100.11` |
 | 链路速率 | 200 Gb/s |
 | RDMA | PASS，约 13 GB/s |
 | NCCL | PASS，16 GB all_gather busbw ~22.2 GB/s |
 | NIM | `deepseek-v4-flash-0731:1.11.0-variant` |
-| API | `http://172.19.51.123:8000/v1` |
+| API | `http://172.19.9.104:8000/v1` |
 | 模型缓存 | ~190 GB / node |
 | 模型权重 | ~177 GB，48 shards，FP8 |
 | 内存占用 | ~112 GB / 121 GB / node |
@@ -644,7 +644,7 @@ opencode.jsonc
       "package": "@opencode-ai/ai/providers/openai-compatible",
 
       "settings": {
-        "baseURL": "http://172.19.51.123:8000/v1"
+        "baseURL": "http://172.19.9.104:8000/v1"
       },
 
       "models": {
@@ -1058,7 +1058,7 @@ Admin Settings
 URL：
 
 ```text
-http://172.19.51.123:8000/v1
+http://172.19.9.104:8000/v1
 ```
 
 Model：
@@ -1493,7 +1493,7 @@ LiteLLM
 应用只使用：
 
 ```text
-http://172.19.51.123:4000/v1
+http://172.19.9.104:4000/v1
 ```
 
 而：
@@ -1561,7 +1561,7 @@ model
 目前 API：
 
 ```text
-172.19.51.123:8000
+172.19.9.104:8000
 ```
 
 如果管理网中其他机器可访问，则存在未经授权调用风险。
@@ -2092,10 +2092,10 @@ git/test/shell 可连续完成
 稳定本地 AI 基础设施。
 
 现状：
-Node0 = 172.19.51.123
+Node0 = 172.19.9.104
 Node1 = 172.19.49.159
 Direct Link = 192.168.100.10 <-> 192.168.100.11
-NIM API = http://172.19.51.123:8000/v1
+NIM API = http://172.19.9.104:8000/v1
 Model = deepseek-ai/DeepSeek-V4-Flash-0731
 NIM image = nvcr.io/nim/deepseek-ai/deepseek-v4-flash-0731:1.11.0-variant
 
@@ -2141,7 +2141,7 @@ PHASE 3
 
 PHASE 4
 14. 创建 OpenCode custom OpenAI-compatible provider。
-15. baseURL 指向 http://172.19.51.123:8000/v1。
+15. baseURL 指向 http://172.19.9.104:8000/v1。
 16. Model ID = deepseek-ai/DeepSeek-V4-Flash-0731。
 17. 创建 fast / think / max 三个 variants。
 18. 初始 context client limit = 65536。

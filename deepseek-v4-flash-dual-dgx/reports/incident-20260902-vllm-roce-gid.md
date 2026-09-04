@@ -9,7 +9,7 @@
 
 ## 1. 现象
 
-- `curl http://172.19.51.123:18090/health` 无响应（后端未监听）。
+- `curl http://172.19.9.104:18090/health` 无响应（后端未监听）。
 - LiteLLM 进程/systemd 正常（4000/4443 在听），`/v1/models` 返回 200，但 `/v1/chat/completions` 报
   `litellm.exceptions.InternalServerError: Connection error`（后端不可达）。
 - Node 0 容器 `deepseek-v4-flash-0731-0` 已于当日 01:57 退出（exit 0）；Node 1 容器
@@ -76,7 +76,7 @@ index 4  RoCE v2     ::ffff:c0a8:640a  (Node1: 640b)   ← IPv4 GID (RoCEv2) ✓
    - Node 0 `:18090/health` → 200（约 2 分钟就绪）。
    - 容器日志确认 `world_size=2`、模型加载、DSpark/FlashInfer 正常。
    - 直连 chat → `VLLM_DGX_OK`；LiteLLM HTTP :4000 chat → `GATEWAY_OK`；HTTPS :4443 `/v1/models` 正常；
-     本机客户端经 `http://172.19.51.123:4000/v1` 实测通过。
+     本机客户端经 `http://172.19.9.104:4000/v1` 实测通过。
 
 ## 4. 预防/后续建议
 

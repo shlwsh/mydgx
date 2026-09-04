@@ -1,7 +1,7 @@
 # DeepSeek-V4-Flash-0731 Deployment Report
 
 ## Nodes
-- Node 0 (Rank 0 / API): 172.19.51.123 (cube-fe5e, DGX Spark GB10)
+- Node 0 (Rank 0 / API): 172.19.9.104 (cube-fe5e, DGX Spark GB10)
 - Node 1 (Rank 1 / Worker): 172.19.49.159 (cube-0137, DGX Spark GB10)
 
 ## Direct Link
@@ -53,7 +53,7 @@
 - Note: first requests trigger SGLang autotuning; throughput improves after warmup. TTFT dominated by distributed prefill.
 
 ## Final Result
-PASS — dual-node DeepSeek-V4-Flash-0731 serving at http://172.19.51.123:8000/v1
+PASS — dual-node DeepSeek-V4-Flash-0731 serving at http://172.19.9.104:8000/v1
 
 ## Remaining Issues / Notes
 1. NGC/geo restrictions: all downloads and API calls to `api.ngc.nvidia.com` must egress via non-Chinese proxy. Runtime containers use an SSH tunnel (`127.0.0.1:7899` -> Node 1 FlClash 127.0.0.1:7890 over CX-7) for the manifest fetch; model blobs are fetched directly from `xfiles.ngc.nvidia.com` (no geo-block) via NO_PROXY.

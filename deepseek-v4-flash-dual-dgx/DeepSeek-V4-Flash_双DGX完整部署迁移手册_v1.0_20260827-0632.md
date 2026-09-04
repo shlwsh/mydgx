@@ -27,8 +27,8 @@
 ```
 客户端 (opencode / Cursor / Open WebUI / 脚本)
         │
-        ├── HTTP   http://172.19.51.123:4000/v1   ← LiteLLM 网关 HTTP（推荐，opencode 用）
-        ├── HTTPS  https://172.19.51.123:4443/v1  ← LiteLLM 网关 HTTPS（自签名证书）
+        ├── HTTP   http://172.19.9.104:4000/v1   ← LiteLLM 网关 HTTP（推荐，opencode 用）
+        ├── HTTPS  https://172.19.9.104:4443/v1  ← LiteLLM 网关 HTTPS（自签名证书）
         │
         └──────────── 转发 ↓ ────────────
                          │
@@ -41,17 +41,17 @@
 
 | 服务 | 地址 | 认证 | 状态 |
 |---|---|---|---|
-| LiteLLM HTTP 网关 | `http://172.19.51.123:4000/v1` | `sk-dgx-local-2026` | active |
-| LiteLLM HTTPS 网关 | `https://172.19.51.123:4443/v1` | `sk-dgx-local-2026` | active |
-| vLLM 推理 | `http://172.19.51.123:18090/v1` | 无（内网） | Up |
-| NIM（回滚保留） | `http://172.19.51.123:8000/v1` | 无 | 已停 |
+| LiteLLM HTTP 网关 | `http://172.19.9.104:4000/v1` | `sk-dgx-local-2026` | active |
+| LiteLLM HTTPS 网关 | `https://172.19.9.104:4443/v1` | `sk-dgx-local-2026` | active |
+| vLLM 推理 | `http://172.19.9.104:18090/v1` | 无（内网） | Up |
+| NIM（回滚保留） | `http://172.19.9.104:8000/v1` | 无 | 已停 |
 
 ## 2. 环境基线
 
 | 项 | Node 0（Rank 0/API） | Node 1（Rank 1） |
 |---|---|---|
 | 主机名 | cube-fe5e | cube-0137 |
-| 管理 IP | 172.19.51.123 | 172.19.49.159 |
+| 管理 IP | 172.19.9.104 | 172.19.49.159 |
 | CX-7 直连 | 192.168.100.10/24 | 192.168.100.11/24 |
 | 直连接口 | enp1s0f0np0（rocep1s0f0, GID 3） | 同左 |
 | GPU | DGX Spark GB10 / SM121 | 同左 |
@@ -199,9 +199,9 @@ DEEPSEEK_THINKING=false
 
 ```bash
 # ===== 健康检查 =====
-curl http://172.19.51.123:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'   # 网关 HTTP
-curl -k https://172.19.51.123:4443/v1/models -H 'Authorization: Bearer sk-dgx-local-2026' # 网关 HTTPS
-curl http://172.19.51.123:18090/health                                                     # vLLM
+curl http://172.19.9.104:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'   # 网关 HTTP
+curl -k https://172.19.9.104:4443/v1/models -H 'Authorization: Bearer sk-dgx-local-2026' # 网关 HTTPS
+curl http://172.19.9.104:18090/health                                                     # vLLM
 bash /opt/deepseek-v4/ops/scripts/status.sh                                               # 集群状态
 
 # ===== 服务管理 =====

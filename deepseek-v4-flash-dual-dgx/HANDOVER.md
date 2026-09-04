@@ -2,7 +2,8 @@
 
 > 交接日期：2026-08-26
 > 部署状态：**在线运行中（PASS）**
-> 服务地址：`http://172.19.51.123:8000/v1`（OpenAI-Compatible API）
+> 服务地址：`http://172.19.9.104:4000/v1`（LiteLLM 网关；原 NIM :8000 已停、旧 Node0 已退役）
+> 迁移说明：2026-09-04 原 Node0（cube-fe5e, 172.19.51.123）由新工作站 **cube-f22b（172.19.9.104）** 接管，详见 `docs/Node0迁移工作站切换方案与执行清单.md`
 
 ---
 
@@ -11,16 +12,16 @@
 ```
                        管理网络 / API
                             │
-                    172.19.51.123:8000
+                    172.19.9.104:4000  (LiteLLM 网关)
                             │
                   ┌─────────▼──────────┐
-                  │ Node 0  cube-fe5e  │  Rank 0 / NIM API Server
+                  │ Node 0 cube-f22b  │  Rank 0 / API Server
                   │ DGX Spark GB10     │
                   │ 121 GiB 统一内存    │
                   └─────────┬──────────┘
                             │
                    ConnectX-7 / RoCE (200Gb/s)
-                      enp1s0f0np0 直连
+                      enp1s0f1np1 直连
                     192.168.100.10 ↔ .11
                             │
                   ┌─────────▼──────────┐
@@ -32,17 +33,17 @@
 
 | 角色 | 主机名 | 管理 IP | 直连 IP | SSH 用户 |
 |---|---|---|---|---|
-| Node 0 / Rank 0 / API | cube-fe5e | 172.19.51.123 | 192.168.100.10 | dgxdeploy |
+| Node 0 / Rank 0 / API | cube-f22b | 172.19.9.104 | 192.168.100.10 | winbot |
 | Node 1 / Rank 1 | cube-0137 | 172.19.49.159 | 192.168.100.11 | dgxdeploy |
 
 ## 2. 访问凭证
 
 | 项 | 说明 |
 |---|---|
-| Node 0 管理口 SSH | `bot@172.19.51.123`（部署初始用户，密码另存） |
+| Node 0（工作站）SSH | `winbot@172.19.9.104`（密码见 `.env`；已内置 dgxdeploy 密钥可免密跳 Node1） |
 | Node 1 管理口 SSH | `his_test@172.19.49.159`（部署初始用户，密码另存） |
-| 运维统一账号 | `dgxdeploy@<管理IP>`，SSH 密钥：`~/.ssh/dgx_deepseek_v4_ed25519`（本机） |
-| sudo | dgxdeploy 已配置 NOPASSWD sudo |
+| 运维统一账号 | `dgxdeploy@<管理IP>`，SSH 密钥：`~/.ssh/dgx_deepseek_v4_ed25519`（本机；Node1 原生，Node0 工作站为 winbot 持有同密钥副本） |
+| sudo | 工作站 winbot NOPASSWD；Node1 dgxdeploy NOPASSWD |
 | NGC API Key | 用于 nvcr.io 登录/模型 manifest，另存于操作者处 |
 | API 认证 | 服务端 `api_key` 可任意填写（NIM 未强制校验） |
 
@@ -90,21 +91,21 @@
 ### 5.1 状态检查
 ```bash
 # API 健康
-curl -s http://172.19.51.123:8000/v1/models
+curl -s http://172.19.9.104:8000/v1/models
 
 # 双机容器
-ssh -i ~/.ssh/dgx_deepseek_v4_ed25519 dgxdeploy@172.19.51.123 'docker ps | grep deepseek-v4'
+ssh -i ~/.ssh/dgx_deepseek_v4_ed25519 dgxdeploy@172.19.9.104 'docker ps | grep deepseek-v4'
 ssh -i ~/.ssh/dgx_deepseek_v4_ed25519 dgxdeploy@172.19.49.159 'docker ps | grep deepseek-v4'
 
 # 日志
-ssh ... dgxdeploy@172.19.51.123 'docker logs -f deepseek-v4-rank0'
+ssh ... dgxdeploy@172.19.9.104 'docker logs -f deepseek-v4-rank0'
 ssh ... dgxdeploy@172.19.49.159 'docker logs -f deepseek-v4-rank1'
 ```
 
 ### 5.2 重启
 ```bash
 # 顺序：先 Rank 0，再 Rank 1
-ssh ... dgxdeploy@172.19.51.123 'docker restart deepseek-v4-rank0'
+ssh ... dgxdeploy@172.19.9.104 'docker restart deepseek-v4-rank0'
 ssh ... dgxdeploy@172.19.49.159 'docker restart deepseek-v4-rank1'
 ```
 注意：Rank 0 启动后发布 `NIM_PRIMARY_NODE`，Rank 1 需在 10 分钟内 join；权重加载约需 5–10 分钟。
@@ -120,7 +121,7 @@ bash ~/deepseek-v4-cluster/scripts/11-rollback-network.sh  # 回滚 netplan + �
 ### 5.4 API 调用示例
 ```python
 from openai import OpenAI
-client = OpenAI(base_url="http://172.19.51.123:8000/v1", api_key="none")
+client = OpenAI(base_url="http://172.19.9.104:8000/v1", api_key="none")
 resp = client.chat.completions.create(
     model="deepseek-ai/DeepSeek-V4-Flash-0731",
     messages=[{"role": "user", "content": "Hello"}],

@@ -48,7 +48,7 @@
 ## Phase B 完成项
 
 ### OpenCode 配置（本机 opencode 1.18.23）
-- provider `dgx` → `http://172.19.51.123:8000/v1`
+- provider `dgx` → `http://172.19.9.104:8000/v1`
 - 模型 `dgx/deepseek-ai/DeepSeek-V4-Flash-0731`（默认）
 - context limit 先设 65536（客户端限制），tool_call/reasoning 能力已声明
 - variants：`fast` / `think` / `max`（chat_template_kwargs 注入）

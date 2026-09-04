@@ -72,7 +72,7 @@ cd ~/deepseek-v4-vllm/upstream && docker compose --env-file .env.canary64 down
 # 恢复 NIM（容器未删除）
 docker start deepseek-v4-rank0   # Node 0，等 API 就绪
 docker start deepseek-v4-rank1   # Node 1
-curl -f http://172.19.51.123:8000/v1/models
+curl -f http://172.19.9.104:8000/v1/models
 ```
 
 ## 8. 镜像获取排障经验（重要）
@@ -93,5 +93,5 @@ curl -f http://172.19.51.123:8000/v1/models
 
 ## 10. 服务地址
 
-- vLLM 生产候选：`http://172.19.51.123:18090/v1`（model: `deepseek-v4-flash-0731`）
-- NIM 回滚：`http://172.19.51.123:8000/v1`
+- vLLM 生产候选：`http://172.19.9.104:18090/v1`（model: `deepseek-v4-flash-0731`）
+- NIM 回滚：`http://172.19.9.104:8000/v1`

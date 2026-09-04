@@ -9,15 +9,15 @@
 ```
 客户端 (opencode / Cursor / Open WebUI / 脚本)
         │
-        ├── HTTP   http://172.19.51.123:4000/v1    ← LiteLLM 网关 HTTP（opencode 等，推荐）
+        ├── HTTP   http://172.19.9.104:4000/v1    ← LiteLLM 网关 HTTP（opencode 等，推荐）
         │             key 认证 + 模型别名
-        ├── HTTPS  https://172.19.51.123:4443/v1   ← LiteLLM 网关 HTTPS（自签名证书）
+        ├── HTTPS  https://172.19.9.104:4443/v1   ← LiteLLM 网关 HTTPS（自签名证书）
         │             key 认证 + 模型别名
         │
         │             两者都转发到 ↓
         │                                      vLLM :18090（推理后端）
         │
-        └── HTTP  http://172.19.51.123:18090/v1   ← vLLM 直连（内网调试用）
+        └── HTTP  http://172.19.9.104:18090/v1   ← vLLM 直连（内网调试用）
                                                   │
                                                   ▼
                                            2×DGX Spark TP=2/RoCE
@@ -27,10 +27,10 @@
 
 | 服务 | 地址 | 认证 | 用途 |
 |---|---|---|---|
-| LiteLLM 网关（HTTP） | `http://172.19.51.123:4000/v1` | `sk-dgx-local-2026` | 客户端入口（推荐，无证书问题） |
-| LiteLLM 网关（HTTPS） | `https://172.19.51.123:4443/v1` | `sk-dgx-local-2026` | 需加密场景（自签名证书） |
-| vLLM 推理 | `http://172.19.51.123:18090/v1` | 无（内网） | 推理后端（内部/调试） |
-| NIM（回滚） | `http://172.19.51.123:8000/v1` | 无 | 已停，保留回滚 |
+| LiteLLM 网关（HTTP） | `http://172.19.9.104:4000/v1` | `sk-dgx-local-2026` | 客户端入口（推荐，无证书问题） |
+| LiteLLM 网关（HTTPS） | `https://172.19.9.104:4443/v1` | `sk-dgx-local-2026` | 需加密场景（自签名证书） |
+| vLLM 推理 | `http://172.19.9.104:18090/v1` | 无（内网） | 推理后端（内部/调试） |
+| NIM（回滚） | `http://172.19.9.104:8000/v1` | 无 | 已停，保留回滚 |
 
 ## 3. LiteLLM 网关配置详解
 
@@ -114,8 +114,8 @@ Restart=on-failure
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout litellm.key -out litellm.crt -days 3650 \
-  -subj "/CN=172.19.51.123/O=DGX-Local" \
-  -addext "subjectAltName=IP:172.19.51.123,IP:127.0.0.1,DNS:localhost" \
+  -subj "/CN=172.19.9.104/O=DGX-Local" \
+  -addext "subjectAltName=IP:172.19.9.104,IP:127.0.0.1,DNS:localhost" \
   -addext "basicConstraints=critical,CA:TRUE" \
   -addext "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign" \
   -addext "extendedKeyUsage=serverAuth"
@@ -123,21 +123,21 @@ openssl req -x509 -newkey rsa:2048 -nodes \
 
 ## 4. 直接访问 vLLM 模型的方法
 
-vLLM 暴露 OpenAI 兼容 API（无认证），`http://172.19.51.123:18090/v1`：
+vLLM 暴露 OpenAI 兼容 API（无认证），`http://172.19.9.104:18090/v1`：
 
 ### 4.1 列模型
 ```bash
-curl http://172.19.51.123:18090/v1/models
+curl http://172.19.9.104:18090/v1/models
 ```
 
 ### 4.2 健康检查
 ```bash
-curl http://172.19.51.123:18090/health
+curl http://172.19.9.104:18090/health
 ```
 
 ### 4.3 推理（chat completions）
 ```bash
-curl http://172.19.51.123:18090/v1/chat/completions \
+curl http://172.19.9.104:18090/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"deepseek-v4-flash-0731","messages":[{"role":"user","content":"你好"}],"max_tokens":256,"temperature":0}'
 ```
@@ -156,7 +156,7 @@ curl http://172.19.51.123:18090/v1/chat/completions \
 
 ### 4.5 Tool calling（须 tool_choice=auto）
 ```bash
-curl http://172.19.51.123:18090/v1/chat/completions \
+curl http://172.19.9.104:18090/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"deepseek-v4-flash-0731","messages":[{"role":"user","content":"当前时间?"}],
        "tools":[{"type":"function","function":{"name":"get_time","description":"获取时间","parameters":{"type":"object","properties":{}}}}],
@@ -167,7 +167,7 @@ curl http://172.19.51.123:18090/v1/chat/completions \
 
 ### 5.1 curl（经网关 HTTP，需 key）
 ```bash
-curl http://172.19.51.123:4000/v1/chat/completions \
+curl http://172.19.9.104:4000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -d '{"model":"deepseek-coding","messages":[{"role":"user","content":"你好"}],"max_tokens":256}'
@@ -175,7 +175,7 @@ curl http://172.19.51.123:4000/v1/chat/completions \
 
 ### 5.1b curl（经网关 HTTPS，需 key + 跳过自签名验证）
 ```bash
-curl -k https://172.19.51.123:4443/v1/chat/completions \
+curl -k https://172.19.9.104:4443/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -d '{"model":"deepseek-coding","messages":[{"role":"user","content":"你好"}],"max_tokens":256}'
@@ -184,7 +184,7 @@ curl -k https://172.19.51.123:4443/v1/chat/completions \
 ### 5.2 Python（经网关 HTTP，OpenAI SDK）
 ```python
 from openai import OpenAI
-client = OpenAI(base_url="http://172.19.51.123:4000/v1",
+client = OpenAI(base_url="http://172.19.9.104:4000/v1",
                 api_key="sk-dgx-local-2026")
 resp = client.chat.completions.create(
     model="deepseek-coding",
@@ -197,7 +197,7 @@ print(resp.choices[0].message.content)
 ### 5.3 Python（直连 vLLM）
 ```python
 from openai import OpenAI
-client = OpenAI(base_url="http://172.19.51.123:18090/v1", api_key="none")
+client = OpenAI(base_url="http://172.19.9.104:18090/v1", api_key="none")
 resp = client.chat.completions.create(
     model="deepseek-v4-flash-0731",
     messages=[{"role":"user","content":"你好"}],

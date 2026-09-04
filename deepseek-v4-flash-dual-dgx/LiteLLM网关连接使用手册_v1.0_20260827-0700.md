@@ -30,7 +30,7 @@ vLLM  :18090
 
 | 参数 | 值 |
 |---|---|
-| Base URL | `http://172.19.51.123:4000/v1`（HTTP）<br>`https://172.19.51.123:4443/v1`（HTTPS，需跳过证书验证） |
+| Base URL | `http://172.19.9.104:4000/v1`（HTTP）<br>`https://172.19.9.104:4443/v1`（HTTPS，需跳过证书验证） |
 | API Key | `sk-dgx-local-2026` |
 | 模型名（别名） | `deepseek-coding` / `deepseek-office` / `deepseek-local` |
 | 上下文 | 131072（128K） |
@@ -53,7 +53,7 @@ vLLM  :18090
       "npm": "@ai-sdk/openai-compatible",
       "name": "DGX DeepSeek V4 (LiteLLM 网关)",
       "options": {
-        "baseURL": "http://172.19.51.123:4000/v1",
+        "baseURL": "http://172.19.9.104:4000/v1",
         "apiKey": "sk-dgx-local-2026",
         "timeout": false,
         "headerTimeout": 300000
@@ -152,7 +152,7 @@ model_list:
 {
   "env": {
     "ANTHROPIC_AUTH_TOKEN": "sk-dgx-local-2026",
-    "ANTHROPIC_BASE_URL": "http://172.19.51.123:4000"
+    "ANTHROPIC_BASE_URL": "http://172.19.9.104:4000"
   },
   "model": "claude-sonnet-4-5",
   "includeCoAuthoredBy": false
@@ -178,7 +178,7 @@ Tool calling（列目录/读文件/回答）实测通过。
 
 ### 4.5 其他客户端：Anthropic 协议直连（curl）
 ```bash
-curl http://172.19.51.123:4000/v1/messages \
+curl http://172.19.9.104:4000/v1/messages \
   -H 'Content-Type: application/json' \
   -H 'x-api-key: sk-dgx-local-2026' \
   -H 'anthropic-version: 2023-06-01' \
@@ -192,7 +192,7 @@ curl http://172.19.51.123:4000/v1/messages \
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://172.19.51.123:4000/v1",
+    base_url="http://172.19.9.104:4000/v1",
     api_key="sk-dgx-local-2026",
 )
 
@@ -206,7 +206,7 @@ print(resp.choices[0].message.content)
 
 ### 5.2 curl
 ```bash
-curl http://172.19.51.123:4000/v1/chat/completions \
+curl http://172.19.9.104:4000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -d '{"model":"deepseek-coding","messages":[{"role":"user","content":"你好"}],"max_tokens":256}'
@@ -217,7 +217,7 @@ curl http://172.19.51.123:4000/v1/chat/completions \
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    base_url="http://172.19.51.123:4000/v1",
+    base_url="http://172.19.9.104:4000/v1",
     api_key="sk-dgx-local-2026",
     model="deepseek-office",
 )
@@ -225,7 +225,7 @@ llm = ChatOpenAI(
 
 ### 5.4 Open WebUI（浏览器）
 Admin Settings → Connections → OpenAI API：
-- API Base URL：`http://172.19.51.123:4000/v1`
+- API Base URL：`http://172.19.9.104:4000/v1`
 - API Key：`sk-dgx-local-2026`
 - 模型：`deepseek-office`
 
@@ -233,11 +233,11 @@ Admin Settings → Connections → OpenAI API：
 
 | 检查项 | 命令 |
 |---|---|
-| 网关可达 | `curl http://172.19.51.123:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'` |
+| 网关可达 | `curl http://172.19.9.104:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'` |
 | key 有效 | 上面返回模型别名即 OK；401 则 key 错 |
 | 模型可用 | `curl :4000/v1/chat/completions ...`（见 §5.2） |
 | Anthropic 端点 | `curl :4000/v1/messages ...`（见 §4.5） |
-| 后端健康 | `curl http://172.19.51.123:18090/health` |
+| 后端健康 | `curl http://172.19.9.104:18090/health` |
 
 ## 7. 常见问题
 
@@ -251,7 +251,7 @@ Admin Settings → Connections → OpenAI API：
 → 用 Claude Code 认识的 Anthropic 模型名（`claude-sonnet-4-5`），并确保网关有对应别名；自定义名（如 deepseek-coding）会被本地拒绝。
 
 **Q4: Claude Code 报 404 / 连不上？**
-→ 检查 `ANTHROPIC_BASE_URL` 是否误带 `/v1` 后缀（应为 `http://172.19.51.123:4000`）；settings.json 的 env 会覆盖系统环境变量。
+→ 检查 `ANTHROPIC_BASE_URL` 是否误带 `/v1` 后缀（应为 `http://172.19.9.104:4000`）；settings.json 的 env 会覆盖系统环境变量。
 
 **Q5: 推理很慢/超时？**
 → 128K 长上下文慢属正常；网关 `request_timeout=1800s`；客户端也需放宽超时（opencode `headerTimeout: 300000`）。

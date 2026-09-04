@@ -13,7 +13,7 @@
 
 | 项目 | Node 0 / API | Node 1 / Worker |
 |---|---|---|
-| 管理 IP | `172.19.51.123` | `172.19.49.159` |
+| 管理 IP | `172.19.9.104` | `172.19.49.159` |
 | 主机 | `cube-fe5e` | `cube-0137` |
 | GPU | DGX Spark GB10 / SM121 | DGX Spark GB10 / SM121 |
 | CX-7 接口 | `enp1s0f0np0` | `enp1s0f0np0` |
@@ -38,7 +38,7 @@ Node1 container:
 deepseek-v4-rank1
 
 API:
-http://172.19.51.123:8000/v1
+http://172.19.9.104:8000/v1
 ```
 
 当前 warm baseline：
@@ -509,7 +509,7 @@ Claude Code 得到实用长上下文
 ## 14. Phase 9：停止 NIM 前最后快照
 
 ```bash
-curl -fsS http://172.19.51.123:8000/v1/models \
+curl -fsS http://172.19.9.104:8000/v1/models \
   > ~/deepseek-v4-vllm/rollback/nim-last-models.json
 
 date -Is > ~/deepseek-v4-vllm/rollback/nim-stop-time.txt
@@ -631,13 +631,13 @@ curl -fsS http://127.0.0.1:18090/v1/models
 外部：
 
 ```bash
-curl -fsS http://172.19.51.123:18090/v1/models
+curl -fsS http://172.19.9.104:18090/v1/models
 ```
 
 Chat：
 
 ```bash
-curl -sS http://172.19.51.123:18090/v1/chat/completions \
+curl -sS http://172.19.9.104:18090/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
     "model":"deepseek-v4-flash-0731",
@@ -962,7 +962,7 @@ docker start deepseek-v4-rank1
 验收：
 
 ```bash
-curl -f http://172.19.51.123:8000/v1/models
+curl -f http://172.19.9.104:8000/v1/models
 bash /opt/deepseek-v4/ops/scripts/status.sh
 ```
 
@@ -1109,7 +1109,7 @@ DeepSeek-V4-Flash-0731 pinned vLLM canary，优先解决约 40K prompt 时
 sparse_mla_sm120_prefill.cu CUDA crash，并验证至少 64K 上下文以供 Claude Code 使用。
 
 当前：
-Node0 172.19.51.123 / CX7 192.168.100.10
+Node0 172.19.9.104 / CX7 192.168.100.10
 Node1 172.19.49.159 / CX7 192.168.100.11
 interface=enp1s0f0np0
 HCA=rocep1s0f0
@@ -1118,7 +1118,7 @@ user=dgxdeploy
 
 NIM：
 deepseek-v4-rank0 / deepseek-v4-rank1
-API=http://172.19.51.123:8000/v1
+API=http://172.19.9.104:8000/v1
 必须完整保留，不删除。
 
 vLLM runtime：
