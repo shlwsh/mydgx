@@ -21,11 +21,11 @@
 | 角色 | 源 Node0（退役, 172.19.51.123→工作站接管） | Node1（不动） |
 |---|---|---|
 | 主机 | cube-fe5e → **cube-f22b（新工作站）** | cube-0137 |
-| 管理 IP | ~~172.19.51.123~~ → **172.19.9.104（工作站）** | 172.19.49.159 |
+| 管理 IP | ~~172.19.51.123~~ → **172.19.50.70（工作站）** | 172.19.49.159 |
 | CX-7 直连 | 192.168.100.10（Rank0） | 192.168.100.11（Rank1） |
 | 服务 | vLLM Rank0 + LiteLLM 网关 | vLLM Rank1 |
 
-**本次目标**：用新工作站 `cube-f22b`（172.19.9.104）**替换 Node0**，保留 Node1 不变；节点少服务期间停机，将原 Node0 的直连光纤改插到工作站，恢复 `2×DGX Spark TP=2 / RoCE / 128K` 双机模式；最后退役 Node0。
+**本次目标**：用新工作站 `cube-f22b`（172.19.50.70）**替换 Node0**，保留 Node1 不变；节点少服务期间停机，将原 Node0 的直连光纤改插到工作站，恢复 `2×DGX Spark TP=2 / RoCE / 128K` 双机模式；最后退役 Node0。
 
 工作站与 Node0 硬件同型（GB10 / aarch64 / 4×CX7，`rocep1s0f0` + mlx5/RDMA 驱动已就绪，仅光纤未接）。可行性已验证成立。
 
@@ -35,8 +35,8 @@
 
 | 决策项 | 结论 |
 |---|---|
-| 客户端入口地址 | 直接用工作站新地址 `172.19.9.104`（改 `.env` / `opencode.json` / `claude settings.json`） |
-| LiteLLM HTTPS 证书 | 为新地址重新自签（CN=172.19.9.104，IP SAN 含 172.19.9.104/127.0.0.1/localhost） |
+| 客户端入口地址 | 直接用工作站新地址 `172.19.50.70`（改 `.env` / `opencode.json` / `claude settings.json`） |
+| LiteLLM HTTPS 证书 | 为新地址重新自签（CN=172.19.50.70，IP SAN 含 172.19.50.70/127.0.0.1/localhost） |
 | 工作站提权 | winbot 免密 NOPASSWD sudo（与双机 dgxdeploy 同构） |
 | **切换方式（v1.1）** | **方案 B 硬切**：停机 → 物理移线（拔 Node0 直连光纤插工作站）→ 重组 (工作站+Node1) TP=2 |
 | **传输源（v1.1）** | **Node1 为源**：模型 156GB + vLLM 镜像 24.8GB 移线后经 200G 光纤直传工作站；**取消 Node0 WiFi rsync** |
@@ -61,7 +61,7 @@
 | LiteLLM venv | python3.12 + litellm==1.98.0（+proxy extras，与 Node0 逐包一致） | Node0（已完成 ✅） | `~/litellm-venv` |
 | LiteLLM 配置 | `litellm_config.yaml`（4 别名，master_key sk-dgx-local-2026） | Node0（已完成 ✅） | `~/litellm_config.yaml` |
 | LiteLLM hooks | `litellm_hooks.py`（125K 硬顶 + max_tokens 钳制） | Node0（已完成 ✅） | `~/litellm_hooks.py` |
-| TLS 证书 | 新自签 `litellm.crt` / `litellm.key`（CN=172.19.9.104） | 工作站自签（已完成 ✅） | `~/litellm.crt` / `~/litellm.key` |
+| TLS 证书 | 新自签 `litellm.crt` / `litellm.key`（CN=172.19.50.70） | 工作站自签（已完成 ✅） | `~/litellm.crt` / `~/litellm.key` |
 | systemd | `litellm.service`（:4000）+ `litellm-https.service`（:4443） | Node0 模板（已装 ✅） | `/etc/systemd/system/` |
 | CX7 netplan | `40-cx7-deepseek.yaml`（192.168.100.10/24） | Node0（已布，apply 延后 ✅） | `/etc/netplan/` |
 | 主机级守护 | vllm-watchdog / vllm-port-lockdown（winbot 版，已装 ✅） | Node0 模板 | `/etc/systemd/system/` + `~/ops/` |
@@ -142,10 +142,10 @@
 - [x] B8. 起 LiteLLM（工作站）：
   - [x] `litellm.service` :4000 + `litellm-https.service` :4443 均 active
   - [x] `/v1/models` 4 别名返回；chat via deepseek-local → **`LITELLM_DGX_OK`**
-- [x] B9. 客户端切换 `172.19.9.104`：
-  - [x] 仓库 `.env` → 172.19.9.104
-  - [x] `opencode.json` dgx baseURL → `http://172.19.9.104:4000/v1`
-  - [x] `.claude/settings.json` ANTHROPIC_BASE_URL → `http://172.19.9.104:4000`
+- [x] B9. 客户端切换 `172.19.50.70`：
+  - [x] 仓库 `.env` → 172.19.50.70
+  - [x] `opencode.json` dgx baseURL → `http://172.19.50.70:4000/v1`
+  - [x] `.claude/settings.json` ANTHROPIC_BASE_URL → `http://172.19.50.70:4000`
   - [x] 端到端：Windows 本机 curl → `CLIENT_MIGRATED_OK`（`-tp2-`）
 - [x] 主机级守护（阶段 A 补）：工作站 vllm-watchdog.timer + vllm-port-lockdown 已启用；iptables :18090 loopback-only 生效；watchdog 手动 rc=0 no-op
 - [ ] B10. 稳定性 soak（后台探针 /home/winbot/logs/soak-*.log 每 5min 记录）：
@@ -193,9 +193,9 @@
 
 ```bash
 # 健康检查（迁移后）
-curl http://172.19.9.104:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'
-curl -k https://172.19.9.104:4443/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'
-curl http://172.19.9.104:18090/health
+curl http://172.19.50.70:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'
+curl -k https://172.19.50.70:4443/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'
+curl http://172.19.50.70:18090/health
 
 # 阶段 B5 · Node1 → 工作站 200G 传输（在 Node1 上执行）
 # 模型 156GB
@@ -217,3 +217,6 @@ docker compose --env-file .env.canary128 up -d / down
 sha256sum /data/models/DeepSeek-V4-Flash-0731/model-00001-of-00048.safetensors
 # 期望 f3668ba4cccf1ca6a7eb84e888fb92c1cdc7204d472ba9db771e6fd3abf6b874
 ```
+
+---
+> ⚠️ 地址变更（2026-09-10）：本文档中的服务地址已统一更新为现行网关 `172.19.50.70`；历史服务（如 NIM :8000）已停用。

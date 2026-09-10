@@ -20,7 +20,7 @@ key 依赖 **PostgreSQL**（SQLite 不支持 key 管理）。
 
 | 项 | 内容 |
 |---|---|
-| 主机 | Node0 / 工作站 `cube-f22b`（172.19.9.104），SSH `winbot@172.19.9.104` |
+| 主机 | Node0 / 工作站 `cube-f22b`（172.19.50.70），SSH `winbot@172.19.50.70` |
 | 配置文件 | `/home/winbot/litellm_config.yaml`（**注意：非旧文档所写的 /home/dgxdeploy/**） |
 | 新增软件 | PostgreSQL 16（apt）、prisma 0.15.0（litellm venv） |
 | 新数据库 | `litellm`，用户 `litellm_user`（superuser） |
@@ -65,7 +65,7 @@ key 依赖 **PostgreSQL**（SQLite 不支持 key 管理）。
 5. **重启并生成 key**：
    ```bash
    sudo systemctl restart litellm.service litellm-https.service
-   curl -X POST http://172.19.9.104:4000/key/generate \
+   curl -X POST http://172.19.50.70:4000/key/generate \
      -H 'Authorization: Bearer sk-dgx-local-2026' -H 'Content-Type: application/json' \
      -d '{"key_alias":"dgx-validation-test","models":["deepseek-coding","deepseek-local","deepseek-office"],"metadata":{"purpose":"testing"}}'
    ```
@@ -115,16 +115,16 @@ key 依赖 **PostgreSQL**（SQLite 不支持 key 管理）。
 
 ```bash
 # 列出现有 key
-curl http://172.19.9.104:4000/key/list -H 'Authorization: Bearer sk-dgx-local-2026'
+curl http://172.19.50.70:4000/key/list -H 'Authorization: Bearer sk-dgx-local-2026'
 # 查看某 key 用量
-curl 'http://172.19.9.104:4000/key/info?key=<key>' -H 'Authorization: Bearer sk-dgx-local-2026'
+curl 'http://172.19.50.70:4000/key/info?key=<key>' -H 'Authorization: Bearer sk-dgx-local-2026'
 # 查看全部调用记录(按 key 分析)
-curl http://172.19.9.104:4000/spend/logs -H 'Authorization: Bearer sk-dgx-local-2026'
+curl http://172.19.50.70:4000/spend/logs -H 'Authorization: Bearer sk-dgx-local-2026'
 # 直接查 PostgreSQL 用量表
 PGPASSWORD=litellm_pg_2026 psql -h 127.0.0.1 -U litellm_user -d litellm \
   -c "SELECT request_id, model_group, total_tokens, request_duration_ms, \"startTime\" FROM \"LiteLLM_SpendLogs\" ORDER BY \"startTime\" DESC LIMIT 10;"
 # 吊销测试 key
-curl -X POST http://172.19.9.104:4000/key/delete \
+curl -X POST http://172.19.50.70:4000/key/delete \
   -H 'Authorization: Bearer sk-dgx-local-2026' -H 'Content-Type: application/json' \
   -d '{"keys":["sk-jACQ6S5DS23Ttjpn6OXnmg"]}'
 # 服务状态
@@ -132,3 +132,6 @@ sudo systemctl status litellm.service litellm-https.service
 # PostgreSQL
 sudo systemctl status postgresql
 ```
+
+---
+> ⚠️ 地址变更（2026-09-10）：本文档中的服务地址已统一更新为现行网关 `172.19.50.70`；历史服务（如 NIM :8000）已停用。

@@ -48,7 +48,7 @@
 ## Phase B 完成项
 
 ### OpenCode 配置（本机 opencode 1.18.23）
-- provider `dgx` → `http://172.19.9.104:8000/v1`
+- provider `dgx` → `http://172.19.50.70:8000/v1`
 - 模型 `dgx/deepseek-ai/DeepSeek-V4-Flash-0731`（默认）
 - context limit 先设 65536（客户端限制），tool_call/reasoning 能力已声明
 - variants：`fast` / `think` / `max`（chat_template_kwargs 注入）
@@ -76,3 +76,6 @@ Fatal Python error: Aborted → scheduler_0 crashed (exit -6) → 容器自动�
 - Phase C：Open WebUI（控制机 Docker Desktop/WSL2，勿装 DGX）+ RAG
 - Phase D：SGLang canary 调参（重点解决 >32K 崩溃后再测 64K/96K/128K）
 - Phase E：LiteLLM Gateway + API key + 别名
+
+---
+> ⚠️ 地址变更（2026-09-10）：本文档中的服务地址已统一更新为现行网关 `172.19.50.70`；历史服务（如 NIM :8000）已停用。

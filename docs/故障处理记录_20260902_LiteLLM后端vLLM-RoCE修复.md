@@ -49,7 +49,7 @@
    - Node0 `:18090/health` → 200,约 2 分钟就绪;日志确认 `world_size=2` / NCCL / DSpark 正常;
    - vLLM 直连 chat → `VLLM_DGX_OK`;
    - LiteLLM HTTP `:4000` chat → `GATEWAY_OK`,HTTPS `:4443` `/v1/models` → 200;
-   - 从本机客户端(Windows)经 `http://172.19.9.104:4000/v1` 实测 → `FROM_CLIENT_OK`。
+   - 从本机客户端(Windows)经 `http://172.19.50.70:4000/v1` 实测 → `FROM_CLIENT_OK`。
 
 ## 4. 附带清理(NIM 时代遗留)
 
@@ -133,7 +133,7 @@ LiteLLM 层对上下文做硬性管理:**输入超过 125K(125000 tokens)的请�
   1 ACCEPT  tcp -- 127.0.0.1             tcp dpt:18090
   2 REJECT  tcp -- 0.0.0.0/0             tcp dpt:18090 reject-with tcp-reset
   ```
-- 验证:主机 `127.0.0.1:18090/health=200`、网关正常;**外部**访问 `172.19.9.104:18090` 已被拒绝(err=7);
+- 验证:主机 `127.0.0.1:18090/health=200`、网关正常;**外部**访问 `172.19.50.70:18090` 已被拒绝(err=7);
   一切外部流量必须走 LiteLLM(125K 管控在网关生效)。
 
 ### 8.2 开启 vLLM 请求级日志
@@ -165,3 +165,6 @@ LiteLLM 层对上下文做硬性管理:**输入超过 125K(125000 tokens)的请�
 | watchdog 日志 | `tail -f ~/logs/vllm-watchdog.log` |
 | 暂停自愈(人工维护) | `touch /home/dgxdeploy/.vllm_maintenance`(结束 `rm`) |
 | 防火墙状态 | `sudo iptables -L INPUT -n` / `sudo systemctl status vllm-port-lockdown` |
+
+---
+> ⚠️ 地址变更（2026-09-10）：本文档中的服务地址已统一更新为现行网关 `172.19.50.70`；历史服务（如 NIM :8000）已停用。

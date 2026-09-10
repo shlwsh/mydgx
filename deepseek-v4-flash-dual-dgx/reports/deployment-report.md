@@ -1,7 +1,7 @@
 # DeepSeek-V4-Flash-0731 Deployment Report
 
 ## Nodes
-- Node 0 (Rank 0 / API): 172.19.9.104 (cube-fe5e, DGX Spark GB10)
+- Node 0 (Rank 0 / API): 172.19.50.70 (cube-fe5e, DGX Spark GB10)
 - Node 1 (Rank 1 / Worker): 172.19.49.159 (cube-0137, DGX Spark GB10)
 
 ## Direct Link
@@ -53,7 +53,7 @@
 - Note: first requests trigger SGLang autotuning; throughput improves after warmup. TTFT dominated by distributed prefill.
 
 ## Final Result
-PASS — dual-node DeepSeek-V4-Flash-0731 serving at http://172.19.9.104:8000/v1
+PASS — dual-node DeepSeek-V4-Flash-0731 serving at http://172.19.50.70:8000/v1
 
 ## Remaining Issues / Notes
 1. NGC/geo restrictions: all downloads and API calls to `api.ngc.nvidia.com` must egress via non-Chinese proxy. Runtime containers use an SSH tunnel (`127.0.0.1:7899` -> Node 1 FlClash 127.0.0.1:7890 over CX-7) for the manifest fetch; model blobs are fetched directly from `xfiles.ngc.nvidia.com` (no geo-block) via NO_PROXY.
@@ -61,3 +61,6 @@ PASS — dual-node DeepSeek-V4-Flash-0731 serving at http://172.19.9.104:8000/v1
 3. Docker daemon on both nodes configured with nvidia runtime (`nvidia-ctk runtime configure`) and a local HTTP proxy drop-in (`/etc/systemd/system/docker.service.d/http-proxy.conf`).
 4. Two persistent systemd units exist on Node 0: `proxy-tunnel` (Wi-Fi path, 7898) and `proxy-tunnel2` (CX-7 path, 7899). Only `proxy-tunnel2` is used by the runtime.
 5. Node 0's own Clash (7897) was flaky/unusable at deploy time; Node 1's FlClash (7890) is the working egress.
+
+---
+> ⚠️ 地址变更（2026-09-10）：本文档中的服务地址已统一更新为现行网关 `172.19.50.70`；历史服务（如 NIM :8000）已停用。
