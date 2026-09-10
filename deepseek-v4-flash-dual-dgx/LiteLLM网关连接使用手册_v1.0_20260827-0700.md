@@ -1,8 +1,18 @@
 # 使用 LiteLLM 网关配置连接指南（附 opencode / Claude Code 示例）
 
-> 版本：v1.1
+> 版本：v1.1（**已被新版取代，见下方提示**）
 > 时间：2026-08-27 07:20 +08:00
 > 目标：让任意 OpenAI 兼容客户端（opencode / Claude Code / Python / Open WebUI）通过 LiteLLM 网关连接本地 DeepSeek-V4-Flash
+
+---
+
+> 🔔 **更新提示（2026-09-10）**：本文件为 v1.1 历史版本。网关已升级：
+> - 新增 **虚拟 key（多密钥）** 与 **测试专用 key**；
+> - 后端新增 **PostgreSQL**（虚拟 key/用量日志依赖）；
+> - 配置路径已校正为 `/home/winbot/litellm_config.yaml`（Node0 迁移至工作站 cube-f22b）。
+>
+> **请以最新版为准**：`docs/LiteLLM网关连接使用手册_v2.0_20260910.md`
+> 相关实施记录：`docs/LiteLLM虚拟密钥启用与测试key记录_20260910.md`
 
 ---
 
@@ -134,7 +144,7 @@ Claude Code 使用 **Anthropic Messages API 协议**（不是 OpenAI 协议）�
 
 Claude Code 只接受它认识的 Anthropic 模型名。需在 LiteLLM 配置中添加 `claude-sonnet-4-5` 别名（映射到实际模型）：
 
-`/home/dgxdeploy/litellm_config.yaml`（Node 0）追加：
+`/home/winbot/litellm_config.yaml`（Node 0）追加：
 ```yaml
 model_list:
   - model_name: claude-sonnet-4-5
@@ -267,4 +277,4 @@ Admin Settings → Connections → OpenAI API：
 - LiteLLM 文档：https://docs.litellm.ai/
 - opencode 文档：https://opencode.ai/docs/providers/（OpenAI 兼容本地模型）
 - Claude Code 配置：`C:\Users\Administrator\.claude\settings.json`
-- 网关配置：`/home/dgxdeploy/litellm_config.yaml`（Node 0）
+- 网关配置：`/home/winbot/litellm_config.yaml`（Node 0）
