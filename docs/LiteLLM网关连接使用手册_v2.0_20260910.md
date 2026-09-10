@@ -1,8 +1,11 @@
 # 使用 LiteLLM 网关配置连接指南（附 opencode / Claude Code 示例）
 
-> 版本：v2.0
+> 版本：v2.0（地址更新：2026-09-10 晚）
 > 时间：2026-09-10 +08:00
 > 上一版：v1.1（2026-08-27）
+>
+> ⚠️ **地址更新（2026-09-10 晚）**：工作站原管理地址 `172.19.9.104` 已失效（有线口断开），现为**无线静态地址 `172.19.50.70`**。
+> 详见 `故障处理记录_20260910_网关地址变更与vLLM-GID修复.md`。本手册全文已更新为 `172.19.50.70`。
 > 目标：让任意 OpenAI 兼容客户端（opencode / Claude Code / Python / Open WebUI）通过 LiteLLM 网关连接本地 DeepSeek-V4-Flash
 >
 > **v2.0 主要变更**：
@@ -39,7 +42,7 @@ vLLM  :18090
 
 | 参数 | 值 |
 |---|---|
-| Base URL | `http://172.19.9.104:4000/v1`（HTTP）<br>`https://172.19.9.104:4443/v1`（HTTPS，需跳过证书验证） |
+| Base URL | `http://172.19.50.70:4000/v1`（HTTP）<br>`https://172.19.50.70:4443/v1`（HTTPS，需跳过证书验证） |
 | 主密钥（master_key） | `sk-dgx-local-2026`（正式客户端沿用） |
 | 测试专用 key | `sk-jACQ6S5DS23Ttjpn6OXnmg`（alias `dgx-validation-test`，仅限测试） |
 | 模型名（别名） | `deepseek-coding` / `deepseek-office` / `deepseek-local` / `claude-sonnet-4-5` |
@@ -73,19 +76,19 @@ vLLM  :18090
 
 ```bash
 # 生成新 key（可加 metadata 便于分析；注意 tags 为企业版功能，开源版勿用）
-curl -X POST http://172.19.9.104:4000/key/generate \
+curl -X POST http://172.19.50.70:4000/key/generate \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -H 'Content-Type: application/json' \
   -d '{"key_alias":"my-key","models":["deepseek-coding"],"metadata":{"owner":"team-a"}}'
 
 # 列出全部 key
-curl http://172.19.9.104:4000/key/list -H 'Authorization: Bearer sk-dgx-local-2026'
+curl http://172.19.50.70:4000/key/list -H 'Authorization: Bearer sk-dgx-local-2026'
 
 # 查看某 key 详情与用量
-curl 'http://172.19.9.104:4000/key/info?key=<KEY>' -H 'Authorization: Bearer sk-dgx-local-2026'
+curl 'http://172.19.50.70:4000/key/info?key=<KEY>' -H 'Authorization: Bearer sk-dgx-local-2026'
 
 # 吊销 key
-curl -X POST http://172.19.9.104:4000/key/delete \
+curl -X POST http://172.19.50.70:4000/key/delete \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -H 'Content-Type: application/json' \
   -d '{"keys":["<KEY>"]}'
@@ -95,7 +98,7 @@ curl -X POST http://172.19.9.104:4000/key/delete \
 
 | 项 | 值 |
 |---|---|
-| 主机 | Node0 / 工作站 `cube-f22b`，`172.19.9.104`，SSH `winbot@172.19.9.104` |
+| 主机 | Node0 / 工作站 `cube-f22b`，`172.19.50.70`，SSH `winbot@172.19.50.70` |
 | 配置文件 | `/home/winbot/litellm_config.yaml` |
 | 证书/私钥 | `/home/winbot/litellm.crt` / `/home/winbot/litellm.key` |
 | 服务 | `litellm.service`（:4000）、`litellm-https.service`（:4443） |
@@ -125,7 +128,7 @@ sudo systemctl status litellm.service litellm-https.service postgresql
       "npm": "@ai-sdk/openai-compatible",
       "name": "DGX DeepSeek V4 (LiteLLM 网关)",
       "options": {
-        "baseURL": "http://172.19.9.104:4000/v1",
+        "baseURL": "http://172.19.50.70:4000/v1",
         "apiKey": "sk-dgx-local-2026",
         "timeout": false,
         "headerTimeout": 300000
@@ -224,7 +227,7 @@ model_list:
 {
   "env": {
     "ANTHROPIC_AUTH_TOKEN": "sk-dgx-local-2026",
-    "ANTHROPIC_BASE_URL": "http://172.19.9.104:4000"
+    "ANTHROPIC_BASE_URL": "http://172.19.50.70:4000"
   },
   "model": "claude-sonnet-4-5",
   "includeCoAuthoredBy": false
@@ -250,7 +253,7 @@ Tool calling（列目录/读文件/回答）实测通过。
 
 ### 5.5 其他客户端：Anthropic 协议直连（curl）
 ```bash
-curl http://172.19.9.104:4000/v1/messages \
+curl http://172.19.50.70:4000/v1/messages \
   -H 'Content-Type: application/json' \
   -H 'x-api-key: sk-dgx-local-2026' \
   -H 'anthropic-version: 2023-06-01' \
@@ -264,7 +267,7 @@ curl http://172.19.9.104:4000/v1/messages \
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://172.19.9.104:4000/v1",
+    base_url="http://172.19.50.70:4000/v1",
     api_key="sk-dgx-local-2026",     # 也可换成分配的虚拟 key
 )
 
@@ -278,7 +281,7 @@ print(resp.choices[0].message.content)
 
 ### 6.2 curl
 ```bash
-curl http://172.19.9.104:4000/v1/chat/completions \
+curl http://172.19.50.70:4000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer sk-dgx-local-2026' \
   -d '{"model":"deepseek-coding","messages":[{"role":"user","content":"你好"}],"max_tokens":256}'
@@ -289,7 +292,7 @@ curl http://172.19.9.104:4000/v1/chat/completions \
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    base_url="http://172.19.9.104:4000/v1",
+    base_url="http://172.19.50.70:4000/v1",
     api_key="sk-dgx-local-2026",
     model="deepseek-office",
 )
@@ -297,7 +300,7 @@ llm = ChatOpenAI(
 
 ### 6.4 Open WebUI（浏览器）
 Admin Settings → Connections → OpenAI API：
-- API Base URL：`http://172.19.9.104:4000/v1`
+- API Base URL：`http://172.19.50.70:4000/v1`
 - API Key：`sk-dgx-local-2026`（或分配的虚拟 key）
 - 模型：`deepseek-office`
 
@@ -308,7 +311,7 @@ Admin Settings → Connections → OpenAI API：
 为便于区分用途与后期分析，按用途各分配一个**虚拟 key**，并填 `metadata`：
 
 ```bash
-curl -X POST http://172.19.9.104:4000/key/generate \
+curl -X POST http://172.19.50.70:4000/key/generate \
   -H 'Authorization: Bearer sk-dgx-local-2026' -H 'Content-Type: application/json' \
   -d '{
         "key_alias": "team-a-coding",
@@ -327,7 +330,7 @@ PostgreSQL 表 `LiteLLM_SpendLogs`，字段含 `api_key`（token 哈希）、`to
 
 ```bash
 # 通过 API 查看调用记录（按 key 过滤可用 key=<虚拟key>）
-curl 'http://172.19.9.104:4000/spend/logs' -H 'Authorization: Bearer sk-dgx-local-2026'
+curl 'http://172.19.50.70:4000/spend/logs' -H 'Authorization: Bearer sk-dgx-local-2026'
 
 # 直接查 PostgreSQL（按 key/时间分析）
 PGPASSWORD=litellm_pg_2026 psql -h 127.0.0.1 -U litellm_user -d litellm -c \
@@ -341,13 +344,13 @@ PGPASSWORD=litellm_pg_2026 psql -h 127.0.0.1 -U litellm_user -d litellm -c \
 
 | 检查项 | 命令 |
 |---|---|
-| 网关可达 | `curl http://172.19.9.104:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'` |
+| 网关可达 | `curl http://172.19.50.70:4000/v1/models -H 'Authorization: Bearer sk-dgx-local-2026'` |
 | key 有效 | 上面返回模型别名即 OK；401 则 key 错 |
 | 模型可用 | `curl :4000/v1/chat/completions ...`（见 §6.2） |
 | Anthropic 端点 | `curl :4000/v1/messages ...`（见 §5.5） |
 | 虚拟 key 功能 | `curl :4000/key/list -H 'Authorization: Bearer sk-dgx-local-2026'` |
 | 用量日志 | `curl :4000/spend/logs -H 'Authorization: Bearer sk-dgx-local-2026'` |
-| 后端健康 | `curl http://172.19.9.104:18090/health` |
+| 后端健康 | `curl http://172.19.50.70:18090/health` |
 
 ## 9. 常见问题
 
@@ -361,7 +364,7 @@ PGPASSWORD=litellm_pg_2026 psql -h 127.0.0.1 -U litellm_user -d litellm -c \
 → 用 Claude Code 认识的 Anthropic 模型名（`claude-sonnet-4-5`），并确保网关有对应别名；自定义名（如 deepseek-coding）会被本地拒绝。
 
 **Q4: Claude Code 报 404 / 连不上？**
-→ 检查 `ANTHROPIC_BASE_URL` 是否误带 `/v1` 后缀（应为 `http://172.19.9.104:4000`）；settings.json 的 env 会覆盖系统环境变量。
+→ 检查 `ANTHROPIC_BASE_URL` 是否误带 `/v1` 后缀（应为 `http://172.19.50.70:4000`）；settings.json 的 env 会覆盖系统环境变量。
 
 **Q5: 推理很慢/超时？**
 → 128K 长上下文慢属正常；网关 `request_timeout=1800s`；客户端也需放宽超时（opencode `headerTimeout: 300000`）。
