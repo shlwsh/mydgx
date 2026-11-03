@@ -6,6 +6,8 @@
   "scripts": {
     "venv": "python -m venv .venv",
     "setup": "python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple",
-    "mygit": "python scripts/mygit.py"
+    "mygit": "bun scripts/mygit.mjs",
+    "mygit:node": "node scripts/mygit.mjs",
+    "mygit:py": "python3 scripts/mygit.py"
   }
 }
