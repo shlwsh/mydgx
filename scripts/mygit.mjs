@@ -69,8 +69,8 @@ function git(args, opt = {}) {
   }
   return {
     code: r.status === null ? 1 : r.status,
-    stdout: (r.stdout || "").trim(),
-    stderr: (r.stderr || "").trim(),
+    stdout: (r.stdout || "").trimEnd(),
+    stderr: (r.stderr || "").trimEnd(),
   };
 }
 
@@ -223,10 +223,14 @@ function collectChanges() {
     .map((line) => line.replace(/\s+$/, ""))
     .filter((line) => line.length >= 3)
     .map((line) => {
-      const code = line.slice(0, 2);
-      let file = line.slice(3).trim();
+      const m = line.match(/^(.{2})\s+(.*)$/);
+      const code = m ? m[1] : line.slice(0, 2);
+      let file = m ? m[2].trim() : line.slice(3).trim();
+      if (file.startsWith('"') && file.endsWith('"')) {
+        file = file.slice(1, -1);
+      }
       // 重命名形如 "R  old -> new"，只展示新路径
-      if (code.includes("R") && file.includes(" -> ")) file = file.split(" -> ").pop();
+      if (code.includes("R") && file.includes(" -> ")) file = file.split(" -> ").pop().trim();
       return { code, path: file };
     });
 }
