@@ -2,12 +2,14 @@
   "name": "mydocs",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "DeepSeek-V4-Flash 双 DGX Spark 部署文档与脚本仓库",
   "scripts": {
-    "venv": "python -m venv .venv",
-    "setup": "python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple",
     "mygit": "bun scripts/mygit.mjs",
-    "mygit:node": "node scripts/mygit.mjs",
-    "mygit:py": "python3 scripts/mygit.py"
+    "mygit:dry": "bun scripts/mygit.mjs --dry-run",
+    "mygit:pull": "bun scripts/mygit.mjs --pull",
+    "mygit:help": "bun scripts/mygit.mjs --help",
+    "venv": "python -m venv .venv",
+    "setup": "python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple"
   }
 }
