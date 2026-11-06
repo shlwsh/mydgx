@@ -20,6 +20,8 @@
     "rdp:diagnose": "node scripts/py_run.mjs diagnose_rdp.py",
     "server70": "node scripts/py_run.mjs rdp_connect.py --node node0",
     "server159": "node scripts/py_run.mjs rdp_connect.py --node node1",
+    "rdp:reset": "node scripts/py_run.mjs rdp_session_reset.py --node all",
+    "rdp:reset-check": "node scripts/py_run.mjs rdp_session_reset.py --node all --check",
     "folders:en": "node scripts/py_run.mjs set_english_folders.py",
     "net:diagnose": "node scripts/py_run.mjs diagnose_network.py",
     "net:fix": "node scripts/py_run.mjs fix_node0_network.py",

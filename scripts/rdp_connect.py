@@ -201,17 +201,17 @@ def gen_windows_rdp(path: str, ip: str, user: str, width: int, height: int) -> N
     logger.info(f"已生成 Windows 连接文件: {path}")
 
 
-def gen_remmina(path: str, ip: str, user: str, width: int, height: int) -> None:
+def gen_remmina(path: str, ip: str, user: str, width: int, height: int, group: str = "双工作站") -> None:
     """生成 Linux Remmina 远程桌面配置（TOML 格式）。"""
     content = (
         '[remmina]\n'
-        'name=RDX\n'
+        'name=' + group + '\n'
         'protocol=RDP\n'
         'server=' + ip + ':' + str(RDP_PORT) + '\n'
         'username=' + user + '\n'
         'password=\n'
         'domain=\n'
-        'group=双工作站\n'
+        'group=' + group + '\n'
         'resolution=' + str(width) + 'x' + str(height) + '\n'
         'viewmode=1\n'
         'viewscale=0\n'
@@ -305,9 +305,24 @@ def launch_freerdp(binary: str, ip: str, user: str, pwd: str, width: int, height
     return subprocess.call(args, env=env)
 
 
-def launch_remmina(binary: str, ip: str, user: str, width: int, height: int) -> int:
+def launch_remmina(binary: str, ip: str, user: str, width: int, height: int,
+                   profile_path: str = "") -> int:
+    """启动 Remmina 图形客户端。
+
+    优先使用已生成的连接描述文件（.remmina），缺失时回退到 URI 参数方式。
+    同时强制 GDK_BACKEND=x11：在 Wayland 合成器会话下，Remmina 的 X11 窗口
+    无法被 xwd 等 X11 截图工具抓取，强制 X11 后端可保证窗口可被正常观测。
+    """
+    env = os.environ.copy()
+    env["GDK_BACKEND"] = "x11"
+
+    if profile_path and os.path.isfile(profile_path):
+        logger.info(f"启动 Remmina 连接 {ip}:{RDP_PORT} (用户 {user}) [配置文件: {os.path.basename(profile_path)}]")
+        return subprocess.call([binary, "-c", profile_path], env=env)
+
     logger.info(f"启动 Remmina 连接 {ip}:{RDP_PORT} (用户 {user})")
-    return subprocess.call([binary, f"--protocol=RDP", f"--server={ip}:{RDP_PORT}", f"--username={user}"])
+    uri = f"rdp://{user}@{ip}:{RDP_PORT}"
+    return subprocess.call([binary, uri], env=env)
 
 
 def launch_rdesktop(binary: str, ip: str, user: str, pwd: str, width: int, height: int) -> int:
@@ -329,7 +344,8 @@ def launch_msrdc(app: str, ip: str, user: str) -> int:
     return subprocess.call(["open", "-a", app, f"ms-rd:\\{ip}"])
 
 
-def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int, height: int) -> int:
+def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int, height: int,
+           profile_path: str = "") -> int:
     """按优先级选择客户端并建立连接。"""
     order = ["freerdp", "remmina", "rdesktop", "mstsc", "msrdc"] if client == "auto" else [client]
 
@@ -340,7 +356,7 @@ def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int,
         if name == "freerdp":
             return launch_freerdp(binary, ip, user, pwd, width, height)
         if name == "remmina":
-            return launch_remmina(binary, ip, user, width, height)
+            return launch_remmina(binary, ip, user, width, height, profile_path)
         if name == "rdesktop":
             return launch_rdesktop(binary, ip, user, pwd, width, height)
         if name == "mstsc":
@@ -349,7 +365,7 @@ def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int,
             return launch_msrdc(binary, ip, user)
 
     logger.error("本机未发现可用 RDP 客户端，请先安装："
-                 "Linux → apt install freerdp2-x11 / remmina；"
+                 "Linux → apt install freerdp3-x11 / remmina remmina-plugin-rdp；"
                  "Windows → 系统自带 mstsc；macOS → Microsoft Remote Desktop")
     return 127
 
@@ -424,8 +440,11 @@ def main() -> int:
             continue
 
         # 3) 生成连接描述文件
-        gen_windows_rdp(os.path.join(out_dir, f"工作站_{node['label'].split()[-1]}_{ip}.rdp"), ip, user, width, height)
-        gen_remmina(os.path.join(out_dir, f"工作站_{node['label'].split()[-1]}_{ip}.remmina"), ip, user, width, height)
+        tag = node["label"].split()[-1]
+        rdp_path = os.path.join(out_dir, f"工作站_{tag}_{ip}.rdp")
+        remmina_path = os.path.join(out_dir, f"工作站_{tag}_{ip}.remmina")
+        gen_windows_rdp(rdp_path, ip, user, width, height)
+        gen_remmina(remmina_path, ip, user, width, height, group=f"工作站_{tag}")
 
         if args.generate:
             continue
@@ -434,7 +453,7 @@ def main() -> int:
             logger.error(f"{node['label']} 端口不可达，跳过连接")
             continue
 
-        launch(clients, args.client, ip, user, pwd, width, height)
+        launch(clients, args.client, ip, user, pwd, width, height, profile_path=remmina_path)
 
     return 0
 
