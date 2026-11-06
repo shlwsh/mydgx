@@ -5,10 +5,17 @@
   "type": "module",
   "description": "DeepSeek-V4-Flash 双 DGX Spark 部署文档与脚本仓库",
   "scripts": {
-    "mygit": "bun scripts/mygit.mjs",
-    "mygit:dry": "bun scripts/mygit.mjs --dry-run",
-    "mygit:pull": "bun scripts/mygit.mjs --pull",
-    "mygit:help": "bun scripts/mygit.mjs --help",
+    "cluster:status": "python scripts/check_status.py",
+    "cluster:stop": "python scripts/cluster_stop.py",
+    "cluster:start": "python scripts/cluster_start.py",
+    "cluster:test": "python scripts/test_conn.py",
+    "rdp:setup": "python scripts/setup_rdp.py",
+    "rdp:status": "python scripts/setup_rdp.py --status",
+    "folders:en": "python scripts/set_english_folders.py",
+    "mygit": "python scripts/mygit.py",
+    "mygit:dry": "python scripts/mygit.py --dry-run",
+    "mygit:pull": "python scripts/mygit.py --pull",
+    "mygit:help": "python scripts/mygit.py --help",
     "venv": "python -m venv .venv",
     "setup": "python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple"
   }

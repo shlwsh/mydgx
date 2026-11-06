@@ -1,1 +1,10 @@
-# 项目 Python 运行依赖（如有新增依赖请在此声明后执行 pip install -r requirements.txt）
+# DeepSeek-V4-Flash 双 DGX 运维项目 Python 依赖清单
+# 安装推荐命令：
+# Windows: .venv\Scripts\pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# Linux:   .venv/bin/pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# SSH 远程连接与批量命令执行
+paramiko>=3.5.0
+
+# 环境变量与敏感配置读取 (.env)
+python-dotenv>=1.0.1
