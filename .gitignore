@@ -16,5 +16,6 @@ __pycache__/
 .env
 *.rdp
 .cache_packages/
+*.remmina
 
 deepseek-v4-flash-dual-dgx\vllm-oci
