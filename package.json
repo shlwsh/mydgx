@@ -11,6 +11,8 @@
     "cluster:test": "python scripts/test_conn.py",
     "rdp:setup": "python scripts/setup_rdp.py",
     "rdp:status": "python scripts/setup_rdp.py --status",
+    "rdp:fix": "python scripts/fix_rdp_crash.py",
+    "rdp:diagnose": "python scripts/diagnose_rdp.py",
     "folders:en": "python scripts/set_english_folders.py",
     "net:diagnose": "python scripts/diagnose_network.py",
     "net:fix": "python scripts/fix_node0_network.py",
