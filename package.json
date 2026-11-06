@@ -20,6 +20,7 @@
     "apps:install": "python scripts/install_software.py",
     "apps:fix-flclash": "python scripts/fix_flclash_desktop.py",
     "apps:diagnose-flclash": "python scripts/diagnose_flclash.py",
+    "fonts:fix": "python scripts/fix_chinese_fonts.py",
     "mygit": "python scripts/mygit.py",
     "mygit:dry": "python scripts/mygit.py --dry-run",
     "mygit:pull": "python scripts/mygit.py --pull",
