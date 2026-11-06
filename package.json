@@ -12,6 +12,8 @@
     "rdp:setup": "python scripts/setup_rdp.py",
     "rdp:status": "python scripts/setup_rdp.py --status",
     "folders:en": "python scripts/set_english_folders.py",
+    "net:diagnose": "python scripts/diagnose_network.py",
+    "net:fix": "python scripts/fix_node0_network.py",
     "mygit": "python scripts/mygit.py",
     "mygit:dry": "python scripts/mygit.py --dry-run",
     "mygit:pull": "python scripts/mygit.py --pull",
