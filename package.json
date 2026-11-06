@@ -18,6 +18,8 @@
     "net:diagnose": "python scripts/diagnose_network.py",
     "net:fix": "python scripts/fix_node0_network.py",
     "apps:install": "python scripts/install_software.py",
+    "apps:fix-flclash": "python scripts/fix_flclash_desktop.py",
+    "apps:diagnose-flclash": "python scripts/diagnose_flclash.py",
     "mygit": "python scripts/mygit.py",
     "mygit:dry": "python scripts/mygit.py --dry-run",
     "mygit:pull": "python scripts/mygit.py --pull",
