@@ -15,5 +15,6 @@ __pycache__/
 # 敏感凭证（含明文密码，禁止入库）
 .env
 *.rdp
+.cache_packages/
 
 deepseek-v4-flash-dual-dgx\vllm-oci

@@ -14,6 +14,7 @@
     "folders:en": "python scripts/set_english_folders.py",
     "net:diagnose": "python scripts/diagnose_network.py",
     "net:fix": "python scripts/fix_node0_network.py",
+    "apps:install": "python scripts/install_software.py",
     "mygit": "python scripts/mygit.py",
     "mygit:dry": "python scripts/mygit.py --dry-run",
     "mygit:pull": "python scripts/mygit.py --pull",
