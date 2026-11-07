@@ -23,7 +23,29 @@ const VENV_DIR = path.join(ROOT, ".venv");
 const isWin = process.platform === "win32";
 const VENV_PY = path.join(VENV_DIR, isWin ? "Scripts" : "bin", isWin ? "python.exe" : "python");
 const REQUIREMENTS = path.join(ROOT, "requirements.txt");
-const PYPI_MIRROR = process.env.PYPI_INDEX || "https://pypi.tuna.tsinghua.edu.cn/simple";
+const MIRROR_CANDIDATES = [
+  process.env.PYPI_INDEX,
+  "https://mirrors.aliyun.com/pypi/simple/",
+  "https://mirrors.cloud.tencent.com/pypi/simple/",
+  "https://pypi.tuna.tsinghua.edu.cn/simple",
+].filter(Boolean);
+
+function tryInstallWithMirrors(args) {
+  let lastError = null;
+  for (const mirror of MIRROR_CANDIDATES) {
+    console.log(`[尝试安装] 镜像源: ${mirror}`);
+    const r = spawnSync(VENV_PY, ["-m", "pip", ...args, "-i", mirror], {
+      cwd: ROOT,
+      stdio: "inherit",
+    });
+    if (r.status === 0) {
+      return true;
+    }
+    console.warn(`[警告] 镜像源 ${mirror} 安装失败，尝试下一镜像源...`);
+    lastError = r;
+  }
+  return false;
+}
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { cwd: ROOT, stdio: "inherit", ...opts });
@@ -38,7 +60,7 @@ function findSystemPython() {
     const r = spawnSync(c, ["--version"], { stdio: "ignore" });
     if (r.status === 0) return c;
   }
-  console.error("[错误] 未找到系统 Python，请先安装 Python 3.10+");
+  console.error("[错误] 未找到系统 Python，请先安装 Python 3.8+");
   process.exit(127);
 }
 
@@ -60,9 +82,16 @@ function installDeps() {
     console.error(`[错误] 依赖清单不存在: ${REQUIREMENTS}`);
     process.exit(2);
   }
-  console.log(`[安装] 依赖来源: ${PYPI_MIRROR}`);
-  run(VENV_PY, ["-m", "pip", "install", "--upgrade", "pip", "-i", PYPI_MIRROR]);
-  run(VENV_PY, ["-m", "pip", "install", "-r", REQUIREMENTS, "-i", PYPI_MIRROR]);
+
+  // 1. 尝试升级 pip
+  tryInstallWithMirrors(["install", "--upgrade", "pip"]);
+
+  // 2. 安装项目依赖（优先预编译 wheel，避免本地无编译环境时从源码编译失败）
+  const success = tryInstallWithMirrors(["install", "--prefer-binary", "-r", REQUIREMENTS]);
+  if (!success) {
+    console.error("[错误] 所有镜像源均尝试完毕，依赖安装失败");
+    process.exit(1);
+  }
   console.log("[完成] 依赖安装结束");
 }
 
