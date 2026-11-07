@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-scripts/rdp_connect.py - 双工作站远程桌面（RDP）跨平台连接工具
+scripts/rdp_connect.py - 三工作站远程桌面（RDP）跨平台连接工具
 
 功能：
 1. 自动探测本机可用的 RDP 客户端（Windows mstsc / Linux FreeRDP+RDP/Remmina / macOS Microsoft Remote Desktop）；
@@ -72,11 +72,23 @@ NODES = {
         "ip_env": "NODE1_MGMT_IP",
         "ip_default": "172.19.49.159",
         "user_env": "NODE1_RDP_USER",
-        "user_default": "dgxdeploy",
+        "user_default": "his_test",
         "pass_env": "NODE1_RDP_PASS",
         "ssh_user_env": "SSH_OPS_USER",
         "ssh_user_default": "dgxdeploy",
         "ssh_pass_env": "SSH_OPS_PASS",
+    },
+    "node123": {
+        "label": "工作站 Node123",
+        "hostname": "cube-fe5e",
+        "ip_env": "NODE123_MGMT_IP",
+        "ip_default": "172.19.51.123",
+        "user_env": "NODE123_RDP_USER",
+        "user_default": "bot",
+        "pass_env": "NODE123_RDP_PASS",
+        "ssh_user_env": "SSH_NODE123_USER",
+        "ssh_user_default": "bot",
+        "ssh_pass_env": "SSH_NODE123_PASS",
     },
 }
 
@@ -163,38 +175,38 @@ def freerdp_libdir(binary: str) -> str:
 
 # ------------------------------------------------------- 连接描述文件
 def gen_windows_rdp(path: str, ip: str, user: str, width: int, height: int) -> None:
-    """生成 Windows 原生 mstsc 连接文件。"""
+    """生成 Windows 原生 mstsc 连接文件（深度局域网极速调优版）。"""
     content = (
         f"full address:s:{ip}:{RDP_PORT}\r\n"
         f"username:s:{user}\r\n"
         "prompt for credentials:i:1\r\n"
-        "administrative session:i:1\r\n"
+        "administrative session:i:0\r\n"
         "screen mode id:i:2\r\n"
         "use multimon:i:0\r\n"
         f"desktopwidth:i:{width}\r\n"
         f"desktopheight:i:{height}\r\n"
-        "session bpp:i:32\r\n"
+        "session bpp:i:24\r\n"
         "compression:i:1\r\n"
         "keyboardhook:i:2\r\n"
         "audiocapturemode:i:0\r\n"
         "videoplaybackmode:i:1\r\n"
-        "connection type:i:7\r\n"
-        "networkautodetect:i:1\r\n"
-        "bandwidthautodetect:i:1\r\n"
+        "connection type:i:6\r\n"
+        "networkautodetect:i:0\r\n"
+        "bandwidthautodetect:i:0\r\n"
         "displayconnectionbar:i:1\r\n"
-        "enableworkspacereconnect:i:0\r\n"
-        "disable wallpaper:i:0\r\n"
+        "enableworkspacereconnect:i:1\r\n"
+        "disable wallpaper:i:1\r\n"
         "allow font smoothing:i:1\r\n"
-        "allow desktop composition:i:1\r\n"
-        "disable full window drag:i:0\r\n"
-        "disable menu anims:i:0\r\n"
+        "allow desktop composition:i:0\r\n"
+        "disable full window drag:i:1\r\n"
+        "disable menu anims:i:1\r\n"
         "disable themes:i:0\r\n"
         "disable cursor setting:i:0\r\n"
         "bitmapcachepersistenable:i:1\r\n"
-        "authentication level:i:2\r\n"
+        "authentication level:i:0\r\n"
         "negotiate security layer:i:1\r\n"
         "redirectclipboard:i:1\r\n"
-        "drivestoredirect:s:*\r\n"
+        "drivestoredirect:s:\r\n"
     )
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -334,9 +346,13 @@ def launch_rdesktop(binary: str, ip: str, user: str, pwd: str, width: int, heigh
     return subprocess.call(args)
 
 
-def launch_mstsc(binary: str, ip: str, user: str, width: int, height: int) -> int:
-    logger.info(f"启动 Windows 远程桌面 (mstsc) 连接 {ip}:{RDP_PORT}")
-    return subprocess.call([binary, f"{ip}:{RDP_PORT}"])
+def launch_mstsc(binary: str, ip: str, user: str, width: int, height: int, profile_path: str = "") -> int:
+    cmd = [binary, profile_path] if profile_path and os.path.isfile(profile_path) else [binary, f"{ip}:{RDP_PORT}"]
+    logger.info(f"启动 Windows 远程桌面 (mstsc) 连接 {ip}:{RDP_PORT} [配置文件: {os.path.basename(profile_path) if profile_path else '无'}]")
+    # Windows 下以非阻塞 Popen 拉起独立 GUI 窗口，避免命令行终端被阻塞卡死
+    subprocess.Popen(cmd)
+    logger.info("Windows 远程桌面客户端已在独立窗口拉起，连接就绪")
+    return 0
 
 
 def launch_msrdc(app: str, ip: str, user: str) -> int:
@@ -360,7 +376,7 @@ def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int,
         if name == "rdesktop":
             return launch_rdesktop(binary, ip, user, pwd, width, height)
         if name == "mstsc":
-            return launch_mstsc(binary, ip, user, width, height)
+            return launch_mstsc(binary, ip, user, width, height, profile_path)
         if name == "msrdc":
             return launch_msrdc(binary, ip, user)
 
@@ -373,11 +389,11 @@ def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int,
 # ------------------------------------------------------- 主流程
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="双工作站远程桌面（RDP）跨平台连接工具",
+        description="三工作站远程桌面（RDP）跨平台连接工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--node", choices=["all", "node0", "node1"], default="all",
-                        help="目标节点: node0 / node1 / all (默认 all)")
+    parser.add_argument("--node", choices=["all", "node0", "node1", "node123"], default="all",
+                        help="目标节点: node0 / node1 / node123 / all (默认 all)")
     parser.add_argument("--client", choices=["auto", "freerdp", "remmina", "rdesktop", "mstsc", "msrdc"],
                         default="auto", help="指定 RDP 客户端，默认自动探测")
     parser.add_argument("--size", default="1920x1080", help="桌面分辨率, 形如 1920x1080")
@@ -453,7 +469,8 @@ def main() -> int:
             logger.error(f"{node['label']} 端口不可达，跳过连接")
             continue
 
-        launch(clients, args.client, ip, user, pwd, width, height, profile_path=remmina_path)
+        target_profile = rdp_path if sys.platform == "win32" else remmina_path
+        launch(clients, args.client, ip, user, pwd, width, height, profile_path=target_profile)
 
     return 0
 

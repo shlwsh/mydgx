@@ -65,6 +65,14 @@ NODES = {
         "ssh_user_default": "dgxdeploy",
         "ssh_pass_env": "SSH_OPS_PASS",
     },
+    "node123": {
+        "label": "工作站 Node123",
+        "ip_env": "NODE123_MGMT_IP",
+        "ip_default": "172.19.51.123",
+        "ssh_user_env": "SSH_NODE123_USER",
+        "ssh_user_default": "bot",
+        "ssh_pass_env": "SSH_NODE123_PASS",
+    },
 }
 
 # 巡检命令：列出当前 xrdp 会话与关键进程
@@ -137,8 +145,8 @@ def reset(client, sudo_pass: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="双工作站远程桌面会话重置工具")
-    parser.add_argument("--node", choices=["all", "node0", "node1"], default="all",
-                        help="目标节点: node0 / node1 / all (默认 all)")
+    parser.add_argument("--node", choices=["all", "node0", "node1", "node123"], default="all",
+                        help="目标节点: node0 / node1 / node123 / all (默认 all)")
     parser.add_argument("--check", action="store_true", help="仅巡检会话状态，不做任何变更")
     args = parser.parse_args()
 
