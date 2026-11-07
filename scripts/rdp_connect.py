@@ -17,6 +17,7 @@ scripts/rdp_connect.py - 三工作站远程桌面（RDP）跨平台连接工具
     python scripts/rdp_connect.py --node node1          # 连接 Node1
     python scripts/rdp_connect.py --node all --generate # 仅生成连接描述文件
     python scripts/rdp_connect.py --node node0 --client freerdp --size 1920x1080
+    python scripts/rdp_connect.py --node node123          # 连接 Node123
 """
 
 import argparse
@@ -65,6 +66,9 @@ NODES = {
         "ssh_user_env": "SSH_NODE0_USER",
         "ssh_user_default": "winbot",
         "ssh_pass_env": "SSH_NODE0_PASS",
+        # 高速互联口地址：管理网（WLAN）不可达时自动回退
+        "fabric_ip_env": "NODE0_FABRIC_IP",
+        "fabric_ip_default": "192.168.100.10",
     },
     "node1": {
         "label": "工作站 Node1",
@@ -77,6 +81,10 @@ NODES = {
         "ssh_user_env": "SSH_OPS_USER",
         "ssh_user_default": "dgxdeploy",
         "ssh_pass_env": "SSH_OPS_PASS",
+        # 高速互联口地址：管理网（WLAN）不可达时自动回退，
+        # 避免节点 IP 漂移导致完全连不上。
+        "fabric_ip_env": "NODE1_FABRIC_IP",
+        "fabric_ip_default": "192.168.100.11",
     },
     "node123": {
         "label": "工作站 Node123",
@@ -91,6 +99,36 @@ NODES = {
         "ssh_pass_env": "SSH_NODE123_PASS",
     },
 }
+
+
+def node_fabric_ip(node: dict) -> str:
+    """读取节点的高速互联口地址（可能为空表示未配置）。"""
+    env_key = node.get("fabric_ip_env")
+    if not env_key:
+        return ""
+    return os.getenv(env_key, node.get("fabric_ip_default", "")).strip()
+
+
+def resolve_node_addr(node: dict, timeout: int = 5) -> tuple:
+    """解析节点可用地址。
+
+    优先使用管理网 IP；若不可达则回退到高速互联口 IP。
+    返回 (地址, 来源描述)，两者皆不可达时地址为空串。
+
+    说明：高速互联口（192.168.100.0/24）仅在 Node0↔Node1 之间物理直连，
+    普通管理机并无该网卡，因此本机直连高速口通常不可达——此情形下
+    调用方需借道 Node0 跳板建立隧道（见 open_jump_tunnel）。
+    """
+    mgmt_ip = node_ip(node)
+    if mgmt_ip and probe_rdp_service(mgmt_ip, timeout=timeout):
+        return mgmt_ip, "管理网"
+
+    fabric_ip = node_fabric_ip(node)
+    if fabric_ip:
+        logger.warning(f"管理网地址 {mgmt_ip} 不可达，回退到高速互联口 {fabric_ip}")
+        return fabric_ip, "高速互联口(需跳板)"
+
+    return mgmt_ip, "管理网(不可达)"
 
 
 def node_ip(node: dict) -> str:
@@ -245,26 +283,68 @@ def gen_remmina(path: str, ip: str, user: str, width: int, height: int, group: s
     logger.info(f"已生成 Remmina 连接配置: {path}")
 
 
-def gen_freerdp_args(ip: str, user: str, pwd: str, width: int, height: int) -> list:
-    """构造跨平台通用 FreeRDP 命令行参数。"""
+def gen_freerdp_args(ip: str, user: str, pwd: str, width: int, height: int,
+                     dynamic_resolution: bool = False, gfx: str = "rfx",
+                     bpp: int = 24, local_port: int = 0,
+                     kbd_layout: str = "0x00000409") -> list:
+    """构造跨平台通用 FreeRDP 命令行参数。
+
+    默认走最兼容模式（固定分辨率 + RemoteFX + bpp 24），与远端
+    xrdp 0.9.x / xorgxrdp 0.9.x 的握手成功率最高；如需自适应分辨率，
+    显式传入 dynamic_resolution=True（对应 --dynamic-resolution）。
+
+    local_port 非 0 时连接本机该端口（用于跳板转发场景）。
+    """
+    target = f"127.0.0.1:{local_port}" if local_port else f"{ip}:{RDP_PORT}"
     args = [
-        f"/v:{ip}:{RDP_PORT}",
+        f"/v:{target}",
         f"/u:{user}",
         "/cert:ignore",
         f"/size:{width}x{height}",
-        "/dynamic-resolution",
+        f"/bpp:{bpp}",
         "/clipboard",
         "/sound",
         "+auto-reconnect",
         "/timeout:15000",
     ]
+    if gfx == "rfx":
+        args.append("/rfx")
+    elif gfx == "gfx":
+        args.append("/gfx:avc444")
+    # gfx == "auto" 时不追加编码参数，由 FreeRDP 自行协商
+    if dynamic_resolution:
+        args.append("/dynamic-resolution")
+    # 固定键盘布局为美式：客户端若上报中文布局(0x00000804)，服务端无对应
+    # keymap 会回退到 km-00000409.ini，且 xrdp 登录窗位图字体无法渲染中文，
+    # 表现为密码框"无焦点"、无法输入。统一锁定 us 布局可规避。
+    if kbd_layout:
+        args.append(f"/kbd:layout:{kbd_layout}")
     if pwd:
         args.insert(2, f"/p:{pwd}")
     return args
 
 
 # ------------------------------------------------------- 连通性与巡检
+def probe_rdp_service(ip: str, port: int = RDP_PORT, timeout: int = 5) -> bool:
+    """通过 RDP 协议握手判定对端是否为真实 RDP 服务。
+
+    单纯的 TCP 连接检测在 Clash TUN 模式下不可靠：本机存在 TUN 虚拟网卡时，
+    所有被路由到代理的连接都会「假性」建立成功，导致不存在的地址也被判定为可达。
+    因此改为发送 X.224 Connection Request 并校验响应类型字节（0x03）。
+    """
+    req = b"\x01\x00\x08\x00" + b"\x03\x00\x00\x00" + b"\x01\x00\x08\x00"
+    try:
+        with socket.create_connection((ip, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(req)
+            resp = sock.recv(19)
+            return len(resp) >= 4 and resp[0] == 0x03
+    except (socket.timeout, OSError):
+        return False
+
+
 def test_tcp_port(ip: str, port: int = RDP_PORT, timeout: int = 3) -> bool:
+    """TCP 端口可达性检测（仅作辅助，代理环境下可能假阳性）。"""
     try:
         with socket.create_connection((ip, port), timeout=timeout):
             return True
@@ -272,8 +352,11 @@ def test_tcp_port(ip: str, port: int = RDP_PORT, timeout: int = 3) -> bool:
         return False
 
 
-def remote_xrdp_status(ip: str, ssh_user: str, ssh_pass: str) -> str:
-    """通过 SSH 读取远端 xrdp 服务状态，返回可读摘要。"""
+def remote_xrdp_status(ip: str, ssh_user: str, ssh_pass: str, jump=None) -> str:
+    """通过 SSH 读取远端 xrdp 服务状态，返回可读摘要。
+
+    传入 jump（已连接的 paramiko SSHClient）时，经该跳板建立隧道访问目标。
+    """
     try:
         import paramiko
     except ImportError:
@@ -282,13 +365,20 @@ def remote_xrdp_status(ip: str, ssh_user: str, ssh_pass: str) -> str:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(
-            hostname=ip,
-            port=22,
-            username=ssh_user,
-            password=ssh_pass or None,
-            timeout=12,
-        )
+        if jump is not None:
+            channel = jump.get_transport().open_channel(
+                "direct-tcpip", (ip, 22), ("127.0.0.1", 0)
+            )
+            client.connect(hostname=ip, port=22, username=ssh_user,
+                           password=ssh_pass or None, sock=channel, timeout=15)
+        else:
+            client.connect(
+                hostname=ip,
+                port=22,
+                username=ssh_user,
+                password=ssh_pass or None,
+                timeout=12,
+            )
         cmd = (
             "printf 'xrdp=%s\\n' \"$(systemctl is-active xrdp 2>/dev/null)\"; "
             "printf 'sesman=%s\\n' \"$(systemctl is-active xrdp-sesman 2>/dev/null)\"; "
@@ -306,9 +396,137 @@ def remote_xrdp_status(ip: str, ssh_user: str, ssh_pass: str) -> str:
             pass
 
 
+def open_jump_tunnel(node: dict):
+    """尝试经 Node0 跳板建立到目标高速口的 SSH 隧道。
+
+    高速互联口（192.168.100.0/24）仅在 Node0↔Node1 之间物理直连，
+    普通管理机并无该网卡，因此需借道 Node0 才能触达。
+
+    返回 (jump_client, target_client) 或 (None, None)。
+    """
+    try:
+        import paramiko
+    except ImportError:
+        return None, None
+
+    jump_ip = os.getenv("NODE0_MGMT_IP", "172.19.50.70").strip()
+    jump_user = os.getenv("SSH_NODE0_USER", "winbot").strip()
+    jump_pass = os.getenv("SSH_NODE0_PASS", "").strip()
+    target_ip = node_fabric_ip(node)
+    target_user = os.getenv(node["ssh_user_env"], node["ssh_user_default"]).strip()
+    target_pass = os.getenv(node["ssh_pass_env"], "").strip()
+
+    if not target_ip:
+        return None, None
+
+    jump = paramiko.SSHClient()
+    jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        jump.connect(hostname=jump_ip, port=22, username=jump_user,
+                     password=jump_pass or None, timeout=15)
+        channel = jump.get_transport().open_channel(
+            "direct-tcpip", (target_ip, 22), ("127.0.0.1", 0)
+        )
+        target = paramiko.SSHClient()
+        target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        target.connect(hostname=target_ip, port=22, username=target_user,
+                       password=target_pass or None, sock=channel, timeout=15)
+        return jump, target
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"经 Node0 跳板连接高速口 {target_ip} 失败: {exc}")
+        try:
+            jump.close()
+        except Exception:  # noqa: BLE001
+            pass
+        return None, None
+
+
+def start_local_rdp_forward(node: dict, local_port: int = 3390) -> tuple:
+    """经 Node0 跳板把目标节点的高速口 RDP 转发到本机本地端口。
+
+    返回 (jump_client, 本地监听端口) 或 (None, 0)。
+    """
+    try:
+        import paramiko
+    except ImportError:
+        return None, 0
+
+    jump_ip = os.getenv("NODE0_MGMT_IP", "172.19.50.70").strip()
+    jump_user = os.getenv("SSH_NODE0_USER", "winbot").strip()
+    jump_pass = os.getenv("SSH_NODE0_PASS", "").strip()
+    target_ip = node_fabric_ip(node)
+    if not target_ip:
+        return None, 0
+
+    jump = paramiko.SSHClient()
+    jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        jump.connect(hostname=jump_ip, port=22, username=jump_user,
+                     password=jump_pass or None, timeout=15)
+        transport = jump.get_transport()
+
+        def forward(channel, origin, dest):
+            chan = None
+            try:
+                chan = transport.open_channel("direct-tcpip", (target_ip, RDP_PORT), origin)
+                while True:
+                    data = channel.recv(32768)
+                    if not data:
+                        break
+                    chan.sendall(data)
+                    data = chan.recv(32768)
+                    if not data:
+                        break
+                    channel.sendall(data)
+            except Exception:  # noqa: BLE001
+                pass
+            finally:
+                for sock in (chan, channel):
+                    try:
+                        if sock is not None:
+                            sock.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", local_port))
+        server.listen(8)
+        server.settimeout(1.0)
+
+        import threading
+
+        def serve():
+            while True:
+                try:
+                    conn, addr = server.accept()
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+                threading.Thread(target=forward, args=(conn, addr, None), daemon=True).start()
+
+        threading.Thread(target=serve, daemon=True).start()
+        logger.info(f"已建立 RDP 转发: 127.0.0.1:{local_port} -> {target_ip}:{RDP_PORT} (经 Node0 跳板)")
+        return jump, local_port
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"建立 RDP 跳板转发失败: {exc}")
+        try:
+            jump.close()
+        except Exception:  # noqa: BLE001
+            pass
+        return None, 0
+
+
 # ------------------------------------------------------- 连接执行
-def launch_freerdp(binary: str, ip: str, user: str, pwd: str, width: int, height: int) -> int:
-    args = [binary] + gen_freerdp_args(ip, user, pwd, width, height)
+def launch_freerdp(binary: str, ip: str, user: str, pwd: str, width: int, height: int,
+                   dynamic_resolution: bool = False, gfx: str = "rfx",
+                   bpp: int = 24, local_port: int = 0,
+                   kbd_layout: str = "0x00000409") -> int:
+    args = [binary] + gen_freerdp_args(ip, user, pwd, width, height,
+                                       dynamic_resolution=dynamic_resolution,
+                                       gfx=gfx, bpp=bpp, local_port=local_port,
+                                       kbd_layout=kbd_layout)
     env = os.environ.copy()
     libdir = freerdp_libdir(binary)
     if libdir:
@@ -318,7 +536,7 @@ def launch_freerdp(binary: str, ip: str, user: str, pwd: str, width: int, height
 
 
 def launch_remmina(binary: str, ip: str, user: str, width: int, height: int,
-                   profile_path: str = "") -> int:
+                   profile_path: str = "", local_port: int = 0) -> int:
     """启动 Remmina 图形客户端。
 
     优先使用已生成的连接描述文件（.remmina），缺失时回退到 URI 参数方式。
@@ -328,12 +546,14 @@ def launch_remmina(binary: str, ip: str, user: str, width: int, height: int,
     env = os.environ.copy()
     env["GDK_BACKEND"] = "x11"
 
-    if profile_path and os.path.isfile(profile_path):
-        logger.info(f"启动 Remmina 连接 {ip}:{RDP_PORT} (用户 {user}) [配置文件: {os.path.basename(profile_path)}]")
+    target = f"127.0.0.1:{local_port}" if local_port else f"{ip}:{RDP_PORT}"
+
+    if profile_path and os.path.isfile(profile_path) and not local_port:
+        logger.info(f"启动 Remmina 连接 {target} (用户 {user}) [配置文件: {os.path.basename(profile_path)}]")
         return subprocess.call([binary, "-c", profile_path], env=env)
 
-    logger.info(f"启动 Remmina 连接 {ip}:{RDP_PORT} (用户 {user})")
-    uri = f"rdp://{user}@{ip}:{RDP_PORT}"
+    logger.info(f"启动 Remmina 连接 {target} (用户 {user})")
+    uri = f"rdp://{user}@{target}"
     return subprocess.call([binary, uri], env=env)
 
 
@@ -361,7 +581,9 @@ def launch_msrdc(app: str, ip: str, user: str) -> int:
 
 
 def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int, height: int,
-           profile_path: str = "") -> int:
+           profile_path: str = "", dynamic_resolution: bool = False,
+           gfx: str = "rfx", bpp: int = 24, local_port: int = 0,
+           kbd_layout: str = "0x00000409") -> int:
     """按优先级选择客户端并建立连接。"""
     order = ["freerdp", "remmina", "rdesktop", "mstsc", "msrdc"] if client == "auto" else [client]
 
@@ -370,9 +592,12 @@ def launch(clients: dict, client: str, ip: str, user: str, pwd: str, width: int,
         if not binary:
             continue
         if name == "freerdp":
-            return launch_freerdp(binary, ip, user, pwd, width, height)
+            return launch_freerdp(binary, ip, user, pwd, width, height,
+                                  dynamic_resolution=dynamic_resolution,
+                                  gfx=gfx, bpp=bpp, local_port=local_port,
+                                  kbd_layout=kbd_layout)
         if name == "remmina":
-            return launch_remmina(binary, ip, user, width, height, profile_path)
+            return launch_remmina(binary, ip, user, width, height, profile_path, local_port=local_port)
         if name == "rdesktop":
             return launch_rdesktop(binary, ip, user, pwd, width, height)
         if name == "mstsc":
@@ -397,6 +622,15 @@ def main() -> int:
     parser.add_argument("--client", choices=["auto", "freerdp", "remmina", "rdesktop", "mstsc", "msrdc"],
                         default="auto", help="指定 RDP 客户端，默认自动探测")
     parser.add_argument("--size", default="1920x1080", help="桌面分辨率, 形如 1920x1080")
+    parser.add_argument("--dynamic-resolution", action="store_true",
+                        help="启用动态分辨率自适应（默认关闭；远端 xrdp 0.9.x 兼容性差，开启后可能握手失败）")
+    parser.add_argument("--gfx", choices=["rfx", "gfx", "auto"], default="rfx",
+                        help="图形编码: rfx=RemoteFX(默认，最兼容) / gfx=AVC444 / auto=由客户端协商")
+    parser.add_argument("--bpp", type=int, choices=[16, 24, 32], default=24,
+                        help="色深(默认 24，与服务端 sesman 配置一致)")
+    parser.add_argument("--kbd", default="0x00000409",
+                        help="键盘布局(默认 us。中文布局 0x00000804 在服务端无对应 keymap，"
+                             "会导致 xrdp 登录窗无法输入)")
     parser.add_argument("--generate", action="store_true", help="仅生成连接描述文件，不发起连接")
     parser.add_argument("--check", action="store_true", help="仅执行端口连通性与远端服务巡检")
     parser.add_argument("--list", action="store_true", help="列出本机可用客户端与节点信息")
@@ -425,8 +659,10 @@ def main() -> int:
         logger.info("节点清单:")
         for key in NODES:
             node = NODES[key]
+            fabric = node_fabric_ip(node)
+            extra = f" | 高速口 {fabric}" if fabric else ""
             logger.info(f"  {key}: {node['label']} ({node['hostname']}) -> {node_ip(node)}:{RDP_PORT}"
-                        f" 用户 {node_user(node)}")
+                        f"{extra} 用户 {node_user(node)}")
         logger.info("=" * 60)
         return 0
 
@@ -435,24 +671,39 @@ def main() -> int:
 
     for key in targets:
         node = NODES[key]
-        ip = node_ip(node)
         user = node_user(node)
         pwd = node_pass(node)
 
+        # 0) 地址解析：管理网优先，不可达时回退高速互联口（需经 Node0 跳板）
+        ip, addr_src = resolve_node_addr(node)
+        use_jump = addr_src.startswith("高速互联口")
+
         logger.info("=" * 60)
-        logger.info(f"{node['label']} ({node['hostname']}) -> {ip}:{RDP_PORT}")
+        logger.info(f"{node['label']} ({node['hostname']}) -> {ip}:{RDP_PORT} [{addr_src}]")
         logger.info("=" * 60)
 
-        # 1) TCP 连通性
-        ok = test_tcp_port(ip)
-        logger.info(f"[端口检测] {ip}:{RDP_PORT} -> {'[成功 PASS]' if ok else '[失败 FAIL]'}")
+        # 1) RDP 服务可达性（协议级握手校验，避免代理环境假阳性）
+        ok = probe_rdp_service(ip)
+        logger.info(f"[服务探测] {ip}:{RDP_PORT} -> {'[成功 PASS]' if ok else '[失败 FAIL]'}")
 
-        # 2) 远端 xrdp 服务巡检
+        # 2) 远端 xrdp 服务巡检（高速口场景经 Node0 跳板）
         ssh_user = os.getenv(node["ssh_user_env"], node["ssh_user_default"]).strip()
         ssh_pass = os.getenv(node["ssh_pass_env"], "").strip()
-        logger.info("[远端巡检] " + remote_xrdp_status(ip, ssh_user, ssh_pass).replace("\n", " | "))
+        jump = None
+        if use_jump:
+            jump, _ = open_jump_tunnel(node)
+            if jump is None:
+                logger.error(f"{node['label']} 跳板隧道建立失败，跳过该节点")
+                continue
+            logger.info("已通过 Node0 跳板访问目标高速互联口")
+            status = remote_xrdp_status(ip, ssh_user, ssh_pass, jump=jump)
+        else:
+            status = remote_xrdp_status(ip, ssh_user, ssh_pass)
+        logger.info("[远端巡检] " + status.replace("\n", " | "))
 
         if args.check:
+            if jump is not None:
+                jump.close()
             continue
 
         # 3) 生成连接描述文件
@@ -463,14 +714,40 @@ def main() -> int:
         gen_remmina(remmina_path, ip, user, width, height, group=f"工作站_{tag}")
 
         if args.generate:
+            if jump is not None:
+                jump.close()
             continue
 
         if not ok:
-            logger.error(f"{node['label']} 端口不可达，跳过连接")
+            logger.error(f"{node['label']} 服务不可达，跳过连接")
+            if jump is not None:
+                jump.close()
+            continue
+
+        if use_jump:
+            # 高速口仅节点间直连，本机无该网卡：建立本地 RDP 转发后连本地端口
+            jump2, local_port = start_local_rdp_forward(node)
+            if jump2 is None:
+                logger.error(f"{node['label']} RDP 转发建立失败，跳过连接")
+                if jump is not None:
+                    jump.close()
+                continue
+            try:
+                launch(clients, args.client, "127.0.0.1", user, pwd, width, height,
+                       profile_path=(rdp_path if sys.platform == "win32" else remmina_path),
+                       dynamic_resolution=args.dynamic_resolution,
+                       gfx=args.gfx, bpp=args.bpp,
+                       local_port=local_port, kbd_layout=args.kbd)
+            finally:
+                jump2.close()
+            if jump is not None:
+                jump.close()
             continue
 
         target_profile = rdp_path if sys.platform == "win32" else remmina_path
-        launch(clients, args.client, ip, user, pwd, width, height, profile_path=target_profile)
+        launch(clients, args.client, ip, user, pwd, width, height, profile_path=target_profile,
+               dynamic_resolution=args.dynamic_resolution, gfx=args.gfx, bpp=args.bpp,
+               kbd_layout=args.kbd)
 
     return 0
 
