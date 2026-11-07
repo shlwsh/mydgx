@@ -69,6 +69,9 @@ NODES = {
         # 高速互联口地址：管理网（WLAN）不可达时自动回退
         "fabric_ip_env": "NODE0_FABRIC_IP",
         "fabric_ip_default": "192.168.100.10",
+        # Tailscale 地址：跨网段稳定访问通道，管理网不可达时的首选回退
+        "ts_ip_env": "NODE0_TAILSCALE_IP",
+        "ts_ip_default": "",
     },
     "node1": {
         "label": "工作站 Node1",
@@ -85,6 +88,9 @@ NODES = {
         # 避免节点 IP 漂移导致完全连不上。
         "fabric_ip_env": "NODE1_FABRIC_IP",
         "fabric_ip_default": "192.168.100.11",
+        # Tailscale 地址：跨网段稳定访问通道，管理网不可达时的首选回退
+        "ts_ip_env": "NODE1_TAILSCALE_IP",
+        "ts_ip_default": "100.103.250.108",
     },
     "node123": {
         "label": "工作站 Node123",
@@ -97,6 +103,9 @@ NODES = {
         "ssh_user_env": "SSH_NODE123_USER",
         "ssh_user_default": "bot",
         "ssh_pass_env": "SSH_NODE123_PASS",
+        # Tailscale 地址：跨网段稳定访问通道
+        "ts_ip_env": "NODE123_TAILSCALE_IP",
+        "ts_ip_default": "100.79.120.65",
     },
 }
 
@@ -109,25 +118,60 @@ def node_fabric_ip(node: dict) -> str:
     return os.getenv(env_key, node.get("fabric_ip_default", "")).strip()
 
 
-def resolve_node_addr(node: dict, timeout: int = 5) -> tuple:
+def node_tailscale_ip(node: dict) -> str:
+    """读取节点的 Tailscale 地址（可能为空表示未接入 tailnet）。"""
+    env_key = node.get("ts_ip_env")
+    if not env_key:
+        return ""
+    return os.getenv(env_key, node.get("ts_ip_default", "")).strip()
+
+
+def resolve_node_addr(node: dict, timeout: int = 5, prefer: str = "auto") -> tuple:
     """解析节点可用地址。
 
-    优先使用管理网 IP；若不可达则回退到高速互联口 IP。
-    返回 (地址, 来源描述)，两者皆不可达时地址为空串。
+    通道优先级：
+      1. Tailscale (100.x)   —— 跨网段稳定，不受 WLAN 掉线/地址漂移影响
+      2. 管理网 (172.19.x)   —— 局域网直连，速度略优
+      3. 高速互联口 (192.168.100.x) —— 需借道 Node0 跳板
+
+    prefer 可选 auto / ts / mgmt。
+    返回 (地址, 来源描述)，皆不可达时地址为空串。
 
     说明：高速互联口（192.168.100.0/24）仅在 Node0↔Node1 之间物理直连，
     普通管理机并无该网卡，因此本机直连高速口通常不可达——此情形下
     调用方需借道 Node0 跳板建立隧道（见 open_jump_tunnel）。
     """
     mgmt_ip = node_ip(node)
-    if mgmt_ip and probe_rdp_service(mgmt_ip, timeout=timeout):
-        return mgmt_ip, "管理网"
-
+    ts_ip = node_tailscale_ip(node)
     fabric_ip = node_fabric_ip(node)
-    if fabric_ip:
-        logger.warning(f"管理网地址 {mgmt_ip} 不可达，回退到高速互联口 {fabric_ip}")
-        return fabric_ip, "高速互联口(需跳板)"
 
+    def _pick_ts():
+        if ts_ip and probe_rdp_service(ts_ip, timeout=timeout):
+            return ts_ip, "Tailscale"
+        return None
+
+    def _pick_mgmt():
+        if mgmt_ip and probe_rdp_service(mgmt_ip, timeout=timeout):
+            return mgmt_ip, "管理网"
+        return None
+
+    def _pick_fabric():
+        if fabric_ip:
+            return fabric_ip, "高速互联口(需跳板)"
+        return None
+
+    order = {
+        "ts": [_pick_ts, _pick_mgmt, _pick_fabric],
+        "mgmt": [_pick_mgmt, _pick_ts, _pick_fabric],
+        "auto": [_pick_ts, _pick_mgmt, _pick_fabric],
+    }.get(prefer, [_pick_ts, _pick_mgmt, _pick_fabric])
+
+    for picker in order:
+        got = picker()
+        if got:
+            return got
+
+    # 全部探测失败：仍返回管理网地址，由调用方决定是否提示
     return mgmt_ip, "管理网(不可达)"
 
 
@@ -631,6 +675,8 @@ def main() -> int:
     parser.add_argument("--kbd", default="0x00000409",
                         help="键盘布局(默认 us。中文布局 0x00000804 在服务端无对应 keymap，"
                              "会导致 xrdp 登录窗无法输入)")
+    parser.add_argument("--via", choices=["auto", "ts", "mgmt"], default="auto",
+                        help="连接通道(auto=Tailscale 优先, ts=仅 Tailscale, mgmt=仅管理网)")
     parser.add_argument("--generate", action="store_true", help="仅生成连接描述文件，不发起连接")
     parser.add_argument("--check", action="store_true", help="仅执行端口连通性与远端服务巡检")
     parser.add_argument("--list", action="store_true", help="列出本机可用客户端与节点信息")
@@ -660,7 +706,9 @@ def main() -> int:
         for key in NODES:
             node = NODES[key]
             fabric = node_fabric_ip(node)
+            ts = node_tailscale_ip(node)
             extra = f" | 高速口 {fabric}" if fabric else ""
+            extra += f" | Tailscale {ts}" if ts else ""
             logger.info(f"  {key}: {node['label']} ({node['hostname']}) -> {node_ip(node)}:{RDP_PORT}"
                         f"{extra} 用户 {node_user(node)}")
         logger.info("=" * 60)
@@ -674,8 +722,8 @@ def main() -> int:
         user = node_user(node)
         pwd = node_pass(node)
 
-        # 0) 地址解析：管理网优先，不可达时回退高速互联口（需经 Node0 跳板）
-        ip, addr_src = resolve_node_addr(node)
+        # 0) 地址解析：Tailscale 优先，其次管理网，最后高速互联口（需经 Node0 跳板）
+        ip, addr_src = resolve_node_addr(node, prefer=args.via)
         use_jump = addr_src.startswith("高速互联口")
 
         logger.info("=" * 60)
