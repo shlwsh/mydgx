@@ -130,9 +130,10 @@ def resolve_node_addr(node: dict, timeout: int = 5, prefer: str = "auto") -> tup
     """解析节点可用地址。
 
     通道优先级：
-      1. Tailscale (100.x)   —— 跨网段稳定，不受 WLAN 掉线/地址漂移影响
-      2. 管理网 (172.19.x)   —— 局域网直连，速度略优
-      3. 高速互联口 (192.168.100.x) —— 需借道 Node0 跳板
+      auto：管理网 (172.19.x) → Tailscale (100.x) → 高速互联口
+            同一房间走管理网，避免多绕一层隧道；管理网 2 秒内无响应再回退
+      ts：Tailscale 优先，适合人离开办公网时
+      mgmt：只认管理网，失败后再试其余通道
 
     prefer 可选 auto / ts / mgmt。
     返回 (地址, 来源描述)，皆不可达时地址为空串。
@@ -150,8 +151,9 @@ def resolve_node_addr(node: dict, timeout: int = 5, prefer: str = "auto") -> tup
             return ts_ip, "Tailscale"
         return None
 
-    def _pick_mgmt():
-        if mgmt_ip and probe_rdp_service(mgmt_ip, timeout=timeout):
+    def _pick_mgmt(wait=0):
+        probe_wait = timeout if not wait else wait
+        if mgmt_ip and probe_rdp_service(mgmt_ip, timeout=probe_wait):
             return mgmt_ip, "管理网"
         return None
 
@@ -163,8 +165,8 @@ def resolve_node_addr(node: dict, timeout: int = 5, prefer: str = "auto") -> tup
     order = {
         "ts": [_pick_ts, _pick_mgmt, _pick_fabric],
         "mgmt": [_pick_mgmt, _pick_ts, _pick_fabric],
-        "auto": [_pick_ts, _pick_mgmt, _pick_fabric],
-    }.get(prefer, [_pick_ts, _pick_mgmt, _pick_fabric])
+        "auto": [lambda: _pick_mgmt(wait=min(timeout, 2)), _pick_ts, _pick_fabric],
+    }.get(prefer, [lambda: _pick_mgmt(wait=min(timeout, 2)), _pick_ts, _pick_fabric])
 
     for picker in order:
         got = picker()
@@ -271,14 +273,14 @@ def gen_windows_rdp(path: str, ip: str, user: str, width: int, height: int) -> N
         "compression:i:1\r\n"
         "keyboardhook:i:2\r\n"
         "audiocapturemode:i:0\r\n"
-        "videoplaybackmode:i:1\r\n"
+        "videoplaybackmode:i:0\r\n"
         "connection type:i:6\r\n"
         "networkautodetect:i:0\r\n"
         "bandwidthautodetect:i:0\r\n"
         "displayconnectionbar:i:1\r\n"
         "enableworkspacereconnect:i:1\r\n"
         "disable wallpaper:i:1\r\n"
-        "allow font smoothing:i:1\r\n"
+        "allow font smoothing:i:0\r\n"
         "allow desktop composition:i:0\r\n"
         "disable full window drag:i:1\r\n"
         "disable menu anims:i:1\r\n"
