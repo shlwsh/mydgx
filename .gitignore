@@ -17,5 +17,10 @@ __pycache__/
 *.rdp
 .cache_packages/
 *.remmina
+*.mobaconf
+
+# 系统与编辑器缓存
+.DS_Store
+*/.DS_Store
 
 deepseek-v4-flash-dual-dgx\vllm-oci
