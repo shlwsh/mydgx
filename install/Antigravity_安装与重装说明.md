@@ -37,7 +37,10 @@ cd /home/bot/work/mydgx
 # 3) 指定其它安装包
 .venv/bin/python install/install_antigravity.py --app app --tarball "$HOME/Downloads/Antigravity.tar.gz"
 
-# 4) 确认新版稳定后，删除旧版本备份
+# 4) 仅修复图标/桌面项（图标变灰、Dock 空白时用；不重新解包）
+.venv/bin/python install/install_antigravity.py --app ide --icons-only
+
+# 5) 确认新版稳定后，删除旧版本备份
 .venv/bin/python install/install_antigravity.py --app app --purge-old
 ```
 
@@ -50,6 +53,7 @@ cd /home/bot/work/mydgx
 | `--prefix` | `/opt/antigravity-ide` 或 `/opt/antigravity` | 安装目录 |
 | `--sudo-pass` | 读 `.env` | sudo 口令，依次取 `LOCAL_SUDO_PASS` → `NODE123_RDP_PASS` → `SSH_NODE123_PASS`，均未配置时交互输入 |
 | `--purge-old` | 关闭 | 重装后删除旧版本备份目录 |
+| `--icons-only` | 关闭 | 只重装图标与桌面项，不重新解包（图标丢失后一键修复） |
 | `--check` | 关闭 | 仅做健康检查，返回码 0 表示正常 |
 | `-v/--verbose` | 关闭 | 输出 DEBUG 级日志 |
 
@@ -60,19 +64,21 @@ cd /home/bot/work/mydgx
    `/opt/antigravity-44.4.3.bak-20261120-083504`、`/opt/antigravity-ide-2.5.5.bak-20261120-062313`，默认保留以便回滚。
 3. **解包**：只提取包内约定目录到 `~/.cache/ag-*/` 暂存，校验可执行文件存在后整体移动到目标路径。
 4. **权限校正**：目录归属 `bot:bot`；`chrome-sandbox` 设为 `root:root 4755`（Electron 沙箱必需，缺失会导致启动失败）。
-5. **入口与快捷方式**：重建 `/usr/local/bin` 软链，写入用户级桌面项并刷新菜单缓存（原桌面项存为 `.desktop.bak`）。
-6. **健康检查**：`ide` 读 `resources/app/product.json`（`ideVersion`/`version`），`app` 读 `version` 文件；再核验沙箱权限、主程序、软链与桌面项，全部通过才返回 0。
+5. **图标安装**：从 `install/assets/` 的母版 PNG 生成 512/256/128/64/48/32 六种尺寸，装入 `/usr/share/icons/hicolor/<尺寸>/apps/`，再执行 `gtk-update-icon-cache`。
+6. **入口与快捷方式**：重建 `/usr/local/bin` 软链，写入用户级桌面项并刷新菜单缓存（原桌面项存为 `.desktop.bak`）。
+7. **健康检查**：`ide` 读 `resources/app/product.json`（`ideVersion`/`version`），`app` 读 `version` 文件；再核验沙箱权限、主程序、软链、桌面项与图标，全部通过才返回 0。
 
 ## 四、健康检查输出释义
 
 ```text
-Antigravity IDE 检查：版本 IDE 2.8.0 / VSCode 1.107.0，sandbox root:root:4755，主程序 存在，命令入口 正常，桌面项 存在 → ✅ 正常
-Antigravity 检查：版本 44.9.1，sandbox root:root:4755，主程序 存在，命令入口 正常，桌面项 存在 → ✅ 正常
+Antigravity IDE 检查：版本 IDE 2.8.0 / VSCode 1.107.0，sandbox root:root:4755，主程序 存在，命令入口 正常，桌面项 存在，图标 存在 → ✅ 正常
+Antigravity 检查：版本 44.9.1，sandbox root:root:4755，主程序 存在，命令入口 正常，桌面项 存在，图标 存在 → ✅ 正常
 ```
 
 - `sandbox 缺失/权限异常`：执行 `sudo chown root:root <prefix>/chrome-sandbox && sudo chmod 4755 <prefix>/chrome-sandbox`。
 - `命令入口 异常`：重跑脚本即可重建软链。
 - `桌面项 缺失`：重跑脚本会重新写入用户级 desktop 文件。
+- `图标 缺失`：执行 `--icons-only` 重新生成并刷新图标缓存。
 - `内置目录缺失`（`安装包内未找到 xxx/ 目录`）：安装包与 `--app` 不匹配，例如把 IDE 包传给 `--app app`。
 
 ## 五、启动与验证
@@ -101,7 +107,62 @@ pgrep -af "/opt/antigravity/antigravity"
 xwininfo -root -tree | grep -i antigravity
 ```
 
-## 六、回滚
+## 六、图标与“应用面板看不到”两处坑
+
+### 6.1 图标变成灰色通用图标
+
+本机 `hicolor/index.theme` 的 `Directories` 列表**没有登记 `1024x1024`**（`grep -c 1024x1024 /usr/share/icons/hicolor/index.theme` 结果为 0）。若图标只放在 `1024x1024/apps/`，GTK/GNOME 按索引查不到该图标名，Dock 与桌面项就退回灰色通用图标——即使 PNG 文件明明存在。
+
+脚本的做法：用 `install/assets/` 里的母版图生成 512/256/128/64/48/32 六档，写入已登记的尺寸目录并刷新缓存，因此重装后不会再出现“没有图标”。
+
+自检命令：
+
+```bash
+# 图标主题能否查到（应输出具体 png 路径，而不是“未找到”）
+python3 - <<'EOF'
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+theme = Gtk.IconTheme.get_default()
+for name in ("antigravity-ide", "antigravity"):
+    info = theme.lookup_icon(name, 64, 0)
+    print(f"{name}: {info.get_filename() if info else '❌ 未找到'}")
+EOF
+```
+
+### 6.2 应用面板（Show Applications）里找不到
+
+这是 GNOME Shell 的既定行为，源码 `appDisplay.js` 的 `_loadApps()`：
+
+```js
+this._appInfoList = Shell.AppSystem.get_default().get_installed().filter(appInfo =>
+    !this._appFavorites.isFavorite(appInfo.get_id()) && ...);
+```
+
+**已固定到 Dock 的应用会被有意从应用面板排除**，一个应用只能在“Dock 固定”与“面板列出”之间二选一。本机把两个 Antigravity 都固定到了 Dock，所以面板里看不到；但：
+
+- Dock 图标可见、可直接点击启动（图标修复后已正常）；
+- GNOME 概览里输入 `antigravity` 搜索仍能命中并启动。
+
+如需让其在应用面板出现，可取消收藏（Dock 上也会随之消失）；最省事的做法是在应用面板里右键该应用选择“取消固定”，或用下面的命令：
+
+```bash
+# 查看当前收藏
+gsettings get org.gnome.shell favorite-apps
+
+# 移除指定项（其余收藏保持不变）
+python3 - <<'EOF'
+import ast, subprocess
+key = "org.gnome.shell favorite-apps"
+current = ast.literal_eval(subprocess.check_output(["gsettings", "get", key], text=True))
+drop = {"antigravity.desktop", "antigravity-ide.desktop"}
+kept = [a for a in current if a not in drop]
+subprocess.run(["gsettings", "set", key, "[" + ", ".join(f"'{a}'" for a in kept) + "]"], check=True)
+print("已移除：", sorted(set(current) & drop))
+EOF
+```
+
+## 七、回滚
 
 ```bash
 # 以 Antigravity 桌面应用为例：先关闭，再就地换回备份
@@ -115,18 +176,20 @@ sudo mv /opt/antigravity-44.4.3.bak-20261120-083504 /opt/antigravity
 
 用户数据目录（`~/.config/Antigravity`、`~/.antigravity-ide`）未改动，回滚后配置与插件仍然可用；若新版本曾写高版本格式，回滚后如出现异常可临时改名该目录重建（会丢失本地设置，操作前先备份）。
 
-## 七、注意事项
+## 八、注意事项
 
 - **sudo 口令不落盘**：脚本只从 `.env`（已在 `.gitignore` 中）或命令行/交互读取，不得写死在代码里。
 - **单实例限制**：同一用户每个应用只能有一个实例，重装前脚本会主动结束旧进程；桌面会话里有未保存文件时请先手动保存。
 - **不要急于 `--purge-old`**：确认新版稳定运行几天后再清理，每个旧备份约 500–770 MB。
 - **包内目录名固定**：脚本按 `PROFILES` 中的 `member` 精确匹配；官方包目录名变化时需同步调整。
-- **系统图标**：`ide` 依赖 `/usr/share/icons/hicolor/1024x1024/apps/antigravity-ide.png`，`app` 依赖 `/usr/share/icons/hicolor/512x512/apps/antigravity.png`；缺失时仅显示通用图标，不影响使用。
+- **图标尺寸**：必须落在 `hicolor/index.theme` 已登记的尺寸目录里（本机最大 512），只放 1024 等于没有图标；母版图保存在 `install/assets/`，不要删。
+- **图标需要刷新缓存**：手工替换图标后执行 `sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor`，否则 Dock 仍显示旧图标。
 - **IDE 与桌面应用不要混装**：两者都用 `antigravity` 前缀命名，务必用 `--app` 区分，避免把桌面应用解包进 `/opt/antigravity-ide`。
 
-## 八、变更记录
+## 九、变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-20 | v1.2 | 新增图标多尺寸生成与 `--icons-only`；查明“无图标”为 hicolor 未登记 1024x1024 所致，“面板看不到”为 GNOME 对 Dock 收藏应用的设计性排除，补充说明文档 |
 | 2026-11-20 | v1.1 | 脚本合并为 `install/install_antigravity.py`，支持 `--app ide/app`；本机 Antigravity 由 44.4.3 升级到 44.9.1（旧版备份保留） |
 | 2026-11-20 | v1.0 | 首次迁入 `install/` 目录并补充说明；同日用 `Antigravity IDE.tar.gz` 将本机 IDE 由 2.5.5 重装为 2.8.0 |

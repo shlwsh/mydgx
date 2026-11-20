@@ -43,6 +43,10 @@ logger = logging.getLogger("install_antigravity")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APPLICATIONS_DIR = Path.home() / ".local/share/applications"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+ICON_THEME_DIR = Path("/usr/share/icons/hicolor")
+# 只使用 hicolor/index.theme 中登记过的尺寸；1024x1024 本机未登记，图标主题查不到
+ICON_SIZES = (512, 256, 128, 64, 48, 32)
 
 # 桌面项模板：IDE 支持“新窗口”动作与目录/文件参数；桌面应用沿用官方 %U 单入口
 DESKTOP_IDE = """[Desktop Entry]
@@ -241,6 +245,40 @@ def setup_cli_link(prefix: Path, profile: dict, sudo_pass: str) -> None:
     logger.info("命令行入口：%s -> %s", link, target)
 
 
+def setup_icons(profile: dict, sudo_pass: str) -> None:
+    """按 hicolor 已登记的尺寸生成图标，并刷新图标缓存。
+
+    本机 hicolor/index.theme 未登记 1024x1024，若只放 1024 图标，GTK/GNOME
+    查不到该图标名，Dock 与桌面项会退回通用灰色图标。
+    """
+    icon = profile["icon"]
+    masters = [ASSETS_DIR / f"{icon}.png", ICON_THEME_DIR / "1024x1024/apps" / f"{icon}.png"]
+    master = next((p for p in masters if p.is_file()), None)
+    if master is None:
+        logger.warning("未找到 %s 图标母版（%s），跳过图标安装", icon, ASSETS_DIR)
+        return
+    try:
+        from PIL import Image
+    except ImportError:  # pragma: no cover
+        raise SystemExit("缺少 Pillow，请执行：.venv/bin/pip install -r requirements.txt")
+
+    with Image.open(master) as source, tempfile.TemporaryDirectory() as tmp:
+        image = source.convert("RGBA")
+        for size in ICON_SIZES:
+            scaled = image.copy()
+            scaled.thumbnail((size, size), Image.LANCZOS)
+            canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+            canvas.paste(scaled, ((size - scaled.width) // 2, (size - scaled.height) // 2))
+            tmp_file = Path(tmp) / f"{size}.png"
+            canvas.save(tmp_file)
+            run(
+                ["install", "-Dm644", str(tmp_file), str(ICON_THEME_DIR / f"{size}x{size}/apps/{icon}.png")],
+                sudo_pass=sudo_pass,
+            )
+    run(["gtk-update-icon-cache", "-f", "-t", str(ICON_THEME_DIR)], sudo_pass=sudo_pass, check=False)
+    logger.info("图标已安装：%s（尺寸 %s）", icon, "/".join(str(s) for s in ICON_SIZES))
+
+
 def setup_desktop(prefix: Path, profile: dict) -> None:
     desktop = profile["desktop"]
     icon = Path("/usr/share/icons/hicolor/512x512/apps") / f"{profile['icon']}.png"
@@ -267,15 +305,18 @@ def check(profile: dict) -> bool:
     link = profile["link"]
     link_ok = run(f"readlink -f {link}", check=False).startswith(str(prefix))
     desktop = profile["desktop"]
-    ok = binary.is_file() and stat == "root:root:4755" and link_ok and desktop.is_file()
+    icon = profile["icon"]
+    icon_file = ICON_THEME_DIR / "512x512/apps" / f"{icon}.png"
+    ok = binary.is_file() and stat == "root:root:4755" and link_ok and desktop.is_file() and icon_file.is_file()
     logger.info(
-        "%s 检查：版本 %s，sandbox %s，主程序 %s，命令入口 %s，桌面项 %s → %s",
+        "%s 检查：版本 %s，sandbox %s，主程序 %s，命令入口 %s，桌面项 %s，图标 %s → %s",
         profile["label"],
         version_text(prefix, profile),
         stat,
         "存在" if binary.is_file() else "缺失",
         "正常" if link_ok else "异常",
         "存在" if desktop.is_file() else "缺失",
+        "存在" if icon_file.is_file() else "缺失",
         "✅ 正常" if ok else "⚠️ 不完整",
     )
     return ok
@@ -291,6 +332,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prefix", type=Path, default=None, help="安装目录（默认按 --app 取默认路径）")
     parser.add_argument("--sudo-pass", default=None, help="sudo 口令（默认读 .env 的 LOCAL_SUDO_PASS / NODE123_RDP_PASS / SSH_NODE123_PASS）")
     parser.add_argument("--purge-old", action="store_true", help="重装后删除旧版本备份（默认保留）")
+    parser.add_argument("--icons-only", action="store_true", help="仅重装图标与桌面项（不重新解包）")
     parser.add_argument("--check", action="store_true", help="仅检查当前安装")
     parser.add_argument("-v", "--verbose", action="store_true", help="输出调试日志")
     args = parser.parse_args(argv)
@@ -306,6 +348,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         return 0 if check(profile) else 1
 
+    if args.icons_only:
+        password = sudo_password(args.sudo_pass)
+        setup_icons(profile, password)
+        setup_desktop(profile["prefix"], profile)
+        return 0 if check(profile) else 1
+
     password = sudo_password(args.sudo_pass)
     prefix: Path = profile["prefix"]
     stop_running(profile)
@@ -317,6 +365,7 @@ def main(argv: list[str] | None = None) -> int:
 
     setup_sandbox(prefix, password)
     setup_cli_link(prefix, profile, password)
+    setup_icons(profile, password)
     setup_desktop(prefix, profile)
     ok = check(profile)
     logger.info("安装完成：%s %s", profile["label"], version_text(prefix, profile))

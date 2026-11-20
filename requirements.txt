@@ -8,3 +8,6 @@ paramiko>=3.5.0
 
 # 环境变量与敏感配置读取 (.env)
 python-dotenv>=1.0.1
+
+# 图标多尺寸生成（install/install_antigravity.py）
+Pillow>=10.0
