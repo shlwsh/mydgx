@@ -23,19 +23,25 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 import json
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import tarfile
 import tempfile
 import time
 from pathlib import Path
 
-from dotenv import load_dotenv
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+from desktop_common import (  # noqa: E402  复用 scripts/ 下的公共实现
+    ICON_SIZES,
+    ICON_THEME_DIR,
+    generate_icons,
+    run,
+    sudo_password,
+)
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -44,9 +50,6 @@ logger = logging.getLogger("install_antigravity")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APPLICATIONS_DIR = Path.home() / ".local/share/applications"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-ICON_THEME_DIR = Path("/usr/share/icons/hicolor")
-# 只使用 hicolor/index.theme 中登记过的尺寸；1024x1024 本机未登记，图标主题查不到
-ICON_SIZES = (512, 256, 128, 64, 48, 32)
 
 # 桌面项模板：IDE 支持“新窗口”动作与目录/文件参数；桌面应用沿用官方 %U 单入口
 DESKTOP_IDE = """[Desktop Entry]
@@ -92,7 +95,7 @@ PROFILES: dict[str, dict] = {
         "link": Path("/usr/local/bin/antigravity-ide"),
         "desktop": APPLICATIONS_DIR / "antigravity-ide.desktop",
         "icon": "antigravity-ide",
-        "wmclass": "antigravity-ide",
+        "wmclass": "Antigravity IDE",
         "version_kind": "product_json",
         "desktop_template": DESKTOP_IDE,
     },
@@ -110,38 +113,6 @@ PROFILES: dict[str, dict] = {
         "desktop_template": DESKTOP_APP,
     },
 }
-
-
-def sudo_password(cli_value: str | None) -> str:
-    """按 参数 → LOCAL_SUDO_PASS → NODE123_RDP_PASS → SSH_NODE123_PASS → 交互输入 的顺序取口令。"""
-    if cli_value:
-        return cli_value
-    load_dotenv(PROJECT_ROOT / ".env")
-    for key in ("LOCAL_SUDO_PASS", "NODE123_RDP_PASS", "SSH_NODE123_PASS"):
-        value = os.getenv(key, "").strip()
-        if value:
-            return value
-    return getpass.getpass("请输入本机 sudo 口令：")
-
-
-def run(command: list[str] | str, sudo_pass: str | None = None, check: bool = True) -> str:
-    stdin_data = None
-    if sudo_pass:
-        if isinstance(command, list):
-            command = ["sudo", "-S", "-p", "", *command]
-        else:
-            command = f"sudo -S -p '' {command}"
-        stdin_data = sudo_pass + "\n"
-    result = subprocess.run(
-        command,
-        shell=isinstance(command, str),
-        input=stdin_data,
-        text=True,
-        capture_output=True,
-    )
-    if check and result.returncode != 0:
-        raise RuntimeError(f"命令失败（{result.returncode}）：{command}\n{result.stdout}\n{result.stderr}")
-    return (result.stdout or "").strip()
 
 
 def version_text(prefix: Path, profile: dict) -> str:
@@ -257,26 +228,7 @@ def setup_icons(profile: dict, sudo_pass: str) -> None:
     if master is None:
         logger.warning("未找到 %s 图标母版（%s），跳过图标安装", icon, ASSETS_DIR)
         return
-    try:
-        from PIL import Image
-    except ImportError:  # pragma: no cover
-        raise SystemExit("缺少 Pillow，请执行：.venv/bin/pip install -r requirements.txt")
-
-    with Image.open(master) as source, tempfile.TemporaryDirectory() as tmp:
-        image = source.convert("RGBA")
-        for size in ICON_SIZES:
-            scaled = image.copy()
-            scaled.thumbnail((size, size), Image.LANCZOS)
-            canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-            canvas.paste(scaled, ((size - scaled.width) // 2, (size - scaled.height) // 2))
-            tmp_file = Path(tmp) / f"{size}.png"
-            canvas.save(tmp_file)
-            run(
-                ["install", "-Dm644", str(tmp_file), str(ICON_THEME_DIR / f"{size}x{size}/apps/{icon}.png")],
-                sudo_pass=sudo_pass,
-            )
-    run(["gtk-update-icon-cache", "-f", "-t", str(ICON_THEME_DIR)], sudo_pass=sudo_pass, check=False)
-    logger.info("图标已安装：%s（尺寸 %s）", icon, "/".join(str(s) for s in ICON_SIZES))
+    generate_icons(icon, master, sudo_pass)
 
 
 def setup_desktop(prefix: Path, profile: dict) -> None:

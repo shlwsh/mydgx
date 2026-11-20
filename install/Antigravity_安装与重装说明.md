@@ -109,6 +109,10 @@ xwininfo -root -tree | grep -i antigravity
 
 ## 六、图标与“应用面板看不到”两处坑
 
+> 与具体应用无关的通用排查方法（图标主题索引、WM_CLASS 关联、多尺寸生成）见
+> `docs/工作站桌面图标与启动器修复方案_v1.0_20261120.md`，并可用
+> `scripts/check_desktop_integration.py` 一键自检。
+
 ### 6.1 图标变成灰色通用图标
 
 本机 `hicolor/index.theme` 的 `Directories` 列表**没有登记 `1024x1024`**（`grep -c 1024x1024 /usr/share/icons/hicolor/index.theme` 结果为 0）。若图标只放在 `1024x1024/apps/`，GTK/GNOME 按索引查不到该图标名，Dock 与桌面项就退回灰色通用图标——即使 PNG 文件明明存在。
